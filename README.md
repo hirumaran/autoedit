@@ -40,3 +40,4 @@ A FastAPI-based AI-powered video editing system that transcribes, analyzes, and 
 - `GET /api/status/{video_id}` - Check status
 - `GET /api/download/{video_id}` - Download result
 - `GET /api/analysis/{video_id}` - Get AI analysis
+# autoedit
