@@ -1,0 +1,13 @@
+{
+  "name": "ai-video-editor",
+  "version": "1.0.0",
+  "description": "AI-powered video editor MVP",
+  "scripts": {
+    "dev": "./run.sh",
+    "start": "./run.sh",
+    "install-deps": "pip install -r backend/requirements.txt"
+  },
+  "keywords": ["video", "ai", "editor"],
+  "author": "",
+  "license": "MIT"
+}

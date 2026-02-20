@@ -1,0 +1,41 @@
+{
+  "86b78e261356": {
+    "id": "86b78e261356",
+    "title": "Upbeat Corporate",
+    "artist": "Unknown Artist",
+    "genre": "unknown",
+    "mood": "upbeat",
+    "bpm": 120,
+    "duration": 372.715083,
+    "filename": "upbeat_corporate.mp3",
+    "source": "local",
+    "preview_url": null,
+    "license": "Unknown - User Uploaded"
+  },
+  "474cadee276f": {
+    "id": "474cadee276f",
+    "title": "Chill Ambient",
+    "artist": "Unknown Artist",
+    "genre": "unknown",
+    "mood": "chill",
+    "bpm": 120,
+    "duration": 425.952625,
+    "filename": "chill_ambient.mp3",
+    "source": "local",
+    "preview_url": null,
+    "license": "Unknown - User Uploaded"
+  },
+  "9a4f8e9cac46": {
+    "id": "9a4f8e9cac46",
+    "title": "boolymon - lost my soundcloud prod marrgielaa - giela (Beats For Sale) - SoundLoadMate.com.mp3",
+    "artist": "Unknown",
+    "genre": "unknown",
+    "mood": "neutral",
+    "bpm": 120,
+    "duration": 89.208163,
+    "filename": "boolymon-lostmysoundcloudprodmarrgielaa-gielaBeatsForSale-SoundLoadMate.com.mp3",
+    "source": "local",
+    "preview_url": null,
+    "license": "User Uploaded"
+  }
+}

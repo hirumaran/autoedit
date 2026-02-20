@@ -1,0 +1,69 @@
+Requirement already satisfied: fastapi==0.104.1 in ./.venv/lib/python3.11/site-packages (from -r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 1)) (0.104.1)
+Requirement already satisfied: uvicorn[standard]==0.24.0 in ./.venv/lib/python3.11/site-packages (from -r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 2)) (0.24.0)
+Requirement already satisfied: python-multipart==0.0.6 in ./.venv/lib/python3.11/site-packages (from -r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 3)) (0.0.6)
+Requirement already satisfied: transformers==4.39.3 in ./.venv/lib/python3.11/site-packages (from -r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 4)) (4.39.3)
+Requirement already satisfied: torch>=2.1.0 in ./.venv/lib/python3.11/site-packages (from -r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 5)) (2.9.1)
+Requirement already satisfied: Pillow==10.2.0 in ./.venv/lib/python3.11/site-packages (from -r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 6)) (10.2.0)
+Requirement already satisfied: ffmpeg-python==0.2.0 in ./.venv/lib/python3.11/site-packages (from -r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 7)) (0.2.0)
+Requirement already satisfied: openai-whisper==20231117 in ./.venv/lib/python3.11/site-packages (from -r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 8)) (20231117)
+Requirement already satisfied: python-dotenv==1.0.0 in ./.venv/lib/python3.11/site-packages (from -r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 9)) (1.0.0)
+Requirement already satisfied: httpx<0.25.0,>=0.24.0 in ./.venv/lib/python3.11/site-packages (from -r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 10)) (0.24.1)
+Requirement already satisfied: anyio<4.0.0,>=3.7.1 in ./.venv/lib/python3.11/site-packages (from fastapi==0.104.1->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 1)) (3.7.1)
+Requirement already satisfied: pydantic!=1.8,!=1.8.1,!=2.0.0,!=2.0.1,!=2.1.0,<3.0.0,>=1.7.4 in ./.venv/lib/python3.11/site-packages (from fastapi==0.104.1->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 1)) (2.12.4)
+Requirement already satisfied: starlette<0.28.0,>=0.27.0 in ./.venv/lib/python3.11/site-packages (from fastapi==0.104.1->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 1)) (0.27.0)
+Requirement already satisfied: typing-extensions>=4.8.0 in ./.venv/lib/python3.11/site-packages (from fastapi==0.104.1->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 1)) (4.15.0)
+Requirement already satisfied: click>=7.0 in ./.venv/lib/python3.11/site-packages (from uvicorn[standard]==0.24.0->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 2)) (8.3.1)
+Requirement already satisfied: h11>=0.8 in ./.venv/lib/python3.11/site-packages (from uvicorn[standard]==0.24.0->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 2)) (0.14.0)
+Requirement already satisfied: httptools>=0.5.0 in ./.venv/lib/python3.11/site-packages (from uvicorn[standard]==0.24.0->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 2)) (0.7.1)
+Requirement already satisfied: pyyaml>=5.1 in ./.venv/lib/python3.11/site-packages (from uvicorn[standard]==0.24.0->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 2)) (6.0.3)
+Requirement already satisfied: uvloop!=0.15.0,!=0.15.1,>=0.14.0 in ./.venv/lib/python3.11/site-packages (from uvicorn[standard]==0.24.0->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 2)) (0.22.1)
+Requirement already satisfied: watchfiles>=0.13 in ./.venv/lib/python3.11/site-packages (from uvicorn[standard]==0.24.0->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 2)) (1.1.1)
+Requirement already satisfied: websockets>=10.4 in ./.venv/lib/python3.11/site-packages (from uvicorn[standard]==0.24.0->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 2)) (15.0.1)
+Requirement already satisfied: filelock in ./.venv/lib/python3.11/site-packages (from transformers==4.39.3->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 4)) (3.20.0)
+Requirement already satisfied: huggingface-hub<1.0,>=0.19.3 in ./.venv/lib/python3.11/site-packages (from transformers==4.39.3->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 4)) (0.36.0)
+Requirement already satisfied: numpy>=1.17 in ./.venv/lib/python3.11/site-packages (from transformers==4.39.3->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 4)) (2.3.5)
+Requirement already satisfied: packaging>=20.0 in ./.venv/lib/python3.11/site-packages (from transformers==4.39.3->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 4)) (25.0)
+Requirement already satisfied: regex!=2019.12.17 in ./.venv/lib/python3.11/site-packages (from transformers==4.39.3->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 4)) (2025.11.3)
+Requirement already satisfied: requests in ./.venv/lib/python3.11/site-packages (from transformers==4.39.3->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 4)) (2.32.5)
+Requirement already satisfied: tokenizers<0.19,>=0.14 in ./.venv/lib/python3.11/site-packages (from transformers==4.39.3->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 4)) (0.15.2)
+Requirement already satisfied: safetensors>=0.4.1 in ./.venv/lib/python3.11/site-packages (from transformers==4.39.3->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 4)) (0.6.2)
+Requirement already satisfied: tqdm>=4.27 in ./.venv/lib/python3.11/site-packages (from transformers==4.39.3->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 4)) (4.67.1)
+Requirement already satisfied: future in ./.venv/lib/python3.11/site-packages (from ffmpeg-python==0.2.0->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 7)) (1.0.0)
+Requirement already satisfied: numba in ./.venv/lib/python3.11/site-packages (from openai-whisper==20231117->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 8)) (0.62.1)
+Requirement already satisfied: more-itertools in ./.venv/lib/python3.11/site-packages (from openai-whisper==20231117->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 8)) (10.8.0)
+Requirement already satisfied: tiktoken in ./.venv/lib/python3.11/site-packages (from openai-whisper==20231117->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 8)) (0.12.0)
+Requirement already satisfied: sympy>=1.13.3 in ./.venv/lib/python3.11/site-packages (from torch>=2.1.0->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 5)) (1.14.0)
+Requirement already satisfied: networkx>=2.5.1 in ./.venv/lib/python3.11/site-packages (from torch>=2.1.0->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 5)) (3.5)
+Requirement already satisfied: jinja2 in ./.venv/lib/python3.11/site-packages (from torch>=2.1.0->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 5)) (3.1.6)
+Requirement already satisfied: fsspec>=0.8.5 in ./.venv/lib/python3.11/site-packages (from torch>=2.1.0->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 5)) (2025.10.0)
+Requirement already satisfied: certifi in ./.venv/lib/python3.11/site-packages (from httpx<0.25.0,>=0.24.0->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 10)) (2025.11.12)
+Requirement already satisfied: httpcore<0.18.0,>=0.15.0 in ./.venv/lib/python3.11/site-packages (from httpx<0.25.0,>=0.24.0->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 10)) (0.17.3)
+Requirement already satisfied: idna in ./.venv/lib/python3.11/site-packages (from httpx<0.25.0,>=0.24.0->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 10)) (3.11)
+Requirement already satisfied: sniffio in ./.venv/lib/python3.11/site-packages (from httpx<0.25.0,>=0.24.0->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 10)) (1.3.1)
+Requirement already satisfied: hf-xet<2.0.0,>=1.1.3 in ./.venv/lib/python3.11/site-packages (from huggingface-hub<1.0,>=0.19.3->transformers==4.39.3->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 4)) (1.2.0)
+Requirement already satisfied: annotated-types>=0.6.0 in ./.venv/lib/python3.11/site-packages (from pydantic!=1.8,!=1.8.1,!=2.0.0,!=2.0.1,!=2.1.0,<3.0.0,>=1.7.4->fastapi==0.104.1->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 1)) (0.7.0)
+Requirement already satisfied: pydantic-core==2.41.5 in ./.venv/lib/python3.11/site-packages (from pydantic!=1.8,!=1.8.1,!=2.0.0,!=2.0.1,!=2.1.0,<3.0.0,>=1.7.4->fastapi==0.104.1->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 1)) (2.41.5)
+Requirement already satisfied: typing-inspection>=0.4.2 in ./.venv/lib/python3.11/site-packages (from pydantic!=1.8,!=1.8.1,!=2.0.0,!=2.0.1,!=2.1.0,<3.0.0,>=1.7.4->fastapi==0.104.1->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 1)) (0.4.2)
+Requirement already satisfied: mpmath<1.4,>=1.1.0 in ./.venv/lib/python3.11/site-packages (from sympy>=1.13.3->torch>=2.1.0->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 5)) (1.3.0)
+Requirement already satisfied: MarkupSafe>=2.0 in ./.venv/lib/python3.11/site-packages (from jinja2->torch>=2.1.0->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 5)) (3.0.3)
+Requirement already satisfied: llvmlite<0.46,>=0.45.0dev0 in ./.venv/lib/python3.11/site-packages (from numba->openai-whisper==20231117->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 8)) (0.45.1)
+Requirement already satisfied: charset_normalizer<4,>=2 in ./.venv/lib/python3.11/site-packages (from requests->transformers==4.39.3->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 4)) (3.4.4)
+Requirement already satisfied: urllib3<3,>=1.21.1 in ./.venv/lib/python3.11/site-packages (from requests->transformers==4.39.3->-r /Users/thirumarandeepak/Documents/ai-video-editor/backend/requirements.txt (line 4)) (2.5.0)
+INFO:     Will watch for changes in these directories: ['/Users/thirumarandeepak/Documents/ai-video-editor/backend']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [51969] using WatchFiles
+/Users/thirumarandeepak/Documents/ai-video-editor/.venv/lib/python3.11/site-packages/huggingface_hub/file_download.py:942: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+INFO:     Started server process [51984]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [51984]
+🔧 Initializing services...
+📥 Loading Whisper base model (first time may take a few minutes)...
+✅ Whisper base model loaded!
+⚠️ DeepSeek OCR unavailable (This modeling file requires the following packages that were not found in your environment: easydict, einops. Run `pip install easydict einops`); falling back to heuristics only
+✅ Services ready!
+INFO:     Stopping reloader process [51969]
