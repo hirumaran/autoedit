@@ -1,7 +1,13 @@
 import ffmpeg
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List, Optional, Tuple
 import subprocess
+import math
+
+try:
+    import cv2  # type: ignore
+except Exception:  # pragma: no cover
+    cv2 = None  # type: ignore
 
 SUBTITLE_STYLE_MAP = {
     "meme": {
@@ -121,6 +127,214 @@ class VideoProcessor:
         except Exception as e:
             return {"error": str(e)}
 
+    def _video_dimensions(self) -> Tuple[int, int]:
+        """Return source video width/height if available."""
+        try:
+            stream = next(
+                (s for s in self.probe.get("streams", []) if s.get("codec_type") == "video"),
+                None
+            )
+            if not stream:
+                return 0, 0
+            return int(stream.get("width", 0)), int(stream.get("height", 0))
+        except Exception:
+            return 0, 0
+
+    def _rotation_and_flip_filters(self, rotation: int, flip_horizontal: bool) -> List[str]:
+        filters: List[str] = []
+        if rotation == 90:
+            filters.append("transpose=1")
+        elif rotation == 180:
+            filters.extend(["transpose=1", "transpose=1"])
+        elif rotation == 270:
+            filters.append("transpose=2")
+        if flip_horizontal:
+            filters.append("hflip")
+        return filters
+
+    def _compress_tracking_points(
+        self,
+        points: List[Tuple[float, int]],
+        max_points: int = 45
+    ) -> List[Tuple[float, int]]:
+        if len(points) <= max_points:
+            return points
+        step = max(1, math.ceil((len(points) - 1) / (max_points - 1)))
+        reduced = [points[0]]
+        idx = step
+        while idx < len(points) - 1:
+            reduced.append(points[idx])
+            idx += step
+        reduced.append(points[-1])
+        return reduced
+
+    def _extract_head_tracking_points(
+        self,
+        crop_w: int,
+        sample_interval: float = 0.5
+    ) -> List[Tuple[float, int]]:
+        """
+        Detect face/head centers over time and return (t, crop_x) keypoints.
+        Falls back to center when detection is unavailable.
+        """
+        src_w, src_h = self._video_dimensions()
+        fallback_x = max((src_w - crop_w) // 2, 0)
+        if src_w <= 0 or src_h <= 0 or cv2 is None:
+            return [(0.0, fallback_x)]
+
+        cascade = cv2.CascadeClassifier(
+            cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+        )
+        if cascade.empty():
+            return [(0.0, fallback_x)]
+
+        capture = cv2.VideoCapture(self.video_path)
+        if not capture.isOpened():
+            return [(0.0, fallback_x)]
+
+        fps = capture.get(cv2.CAP_PROP_FPS) or 30.0
+        frame_count = capture.get(cv2.CAP_PROP_FRAME_COUNT) or 0.0
+        duration = self.duration or ((frame_count / fps) if fps > 0 else 0.0)
+        min_face_side = max(int(min(src_w, src_h) * 0.08), 24)
+
+        points: List[Tuple[float, int]] = []
+        next_sample_at = 0.0
+        smoothed_x = float(fallback_x)
+        smoothing_alpha = 0.35
+        frame_idx = 0
+
+        while True:
+            ok, frame = capture.read()
+            if not ok:
+                break
+
+            t = (frame_idx / fps) if fps > 0 else 0.0
+            frame_idx += 1
+
+            if t + 1e-6 < next_sample_at:
+                continue
+            next_sample_at += sample_interval
+
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            faces = cascade.detectMultiScale(
+                gray,
+                scaleFactor=1.15,
+                minNeighbors=5,
+                minSize=(min_face_side, min_face_side)
+            )
+
+            target_x = int(round(smoothed_x))
+            if len(faces) > 0:
+                x, _, w, _ = max(faces, key=lambda f: f[2] * f[3])
+                center_x = x + (w / 2.0)
+                target_x = int(round(center_x - (crop_w / 2.0)))
+
+            target_x = max(0, min(target_x, max(src_w - crop_w, 0)))
+            smoothed_x = (smoothing_alpha * target_x) + ((1.0 - smoothing_alpha) * smoothed_x)
+            tracked_x = int(round(smoothed_x))
+
+            if not points or abs(points[-1][1] - tracked_x) >= 6:
+                points.append((round(t, 3), tracked_x))
+
+        capture.release()
+
+        if not points:
+            points = [(0.0, fallback_x)]
+
+        if duration > 0 and points[-1][0] < duration:
+            points.append((round(duration, 3), points[-1][1]))
+
+        return self._compress_tracking_points(points)
+
+    def _build_piecewise_x_expr(self, points: List[Tuple[float, int]]) -> str:
+        """Build FFmpeg crop x-expression from tracking keypoints."""
+        if not points:
+            return "0"
+        if len(points) == 1:
+            return str(points[0][1])
+
+        expr = str(points[-1][1])
+        for idx in range(len(points) - 2, -1, -1):
+            t0, x0 = points[idx]
+            t1, x1 = points[idx + 1]
+
+            if t1 <= t0:
+                segment = str(x1)
+            elif x0 == x1:
+                segment = str(x0)
+            else:
+                dt = t1 - t0
+                segment = f"({x0}+({x1}-{x0})*(t-{t0:.3f})/{dt:.3f})"
+
+            expr = f"if(lt(t\\,{t1:.3f})\\,{segment}\\,{expr})"
+
+        return f"trunc({expr})"
+
+    def _build_smart_crop_filter(self, target_w: int, target_h: int) -> str:
+        """
+        Build a head-tracked crop filter that follows subject horizontally.
+        For non-horizontal mismatches, it falls back to center crop behavior.
+        """
+        src_w, src_h = self._video_dimensions()
+        if src_w <= 0 or src_h <= 0 or target_w <= 0 or target_h <= 0:
+            return (
+                f"scale={target_w}:{target_h}:force_original_aspect_ratio=increase,"
+                f"crop={target_w}:{target_h},setsar=1"
+            )
+
+        target_ar = target_w / target_h
+        src_ar = src_w / src_h
+
+        crop_w = src_w
+        crop_h = src_h
+        if src_ar > target_ar:
+            crop_w = min(src_w, max(2, int(round(src_h * target_ar))))
+        elif src_ar < target_ar:
+            crop_h = min(src_h, max(2, int(round(src_w / target_ar))))
+
+        x_expr = f"(iw-{crop_w})/2"
+        y_expr = f"(ih-{crop_h})/2"
+
+        # Head tracking is most useful when trimming left/right from wide footage.
+        if crop_w < src_w:
+            points = self._extract_head_tracking_points(crop_w)
+            x_expr = self._build_piecewise_x_expr(points)
+            y_expr = "0"
+
+        return f"crop={crop_w}:{crop_h}:{x_expr}:{y_expr},scale={target_w}:{target_h},setsar=1"
+
+    def _transform_with_fit_blur(
+        self,
+        output_path: str,
+        target_w: int,
+        target_h: int,
+        post_filters: Optional[List[str]] = None
+    ) -> str:
+        """Compose a blurred-fill background with centered foreground."""
+        post_filters = post_filters or []
+        post_chain = ",".join(post_filters + ["setsar=1"])
+        filter_complex = (
+            f"[0:v]scale={target_w}:{target_h}:force_original_aspect_ratio=increase,"
+            f"crop={target_w}:{target_h},boxblur=35:12[bg];"
+            f"[0:v]scale={target_w}:{target_h}:force_original_aspect_ratio=decrease[fg];"
+            f"[bg][fg]overlay=(W-w)/2:(H-h)/2[base];"
+            f"[base]{post_chain}[outv]"
+        )
+        cmd = [
+            "ffmpeg", "-y",
+            "-i", self.video_path,
+            "-filter_complex", filter_complex,
+            "-map", "[outv]",
+            "-map", "0:a?",
+            "-c:a", "copy",
+            "-preset", "fast",
+            output_path
+        ]
+        print(f"🎬 Transform (fit_blur): ffmpeg -filter_complex '{filter_complex}'")
+        subprocess.run(cmd, check=True, capture_output=True)
+        print(f"✅ Transformed video → {output_path}")
+        return output_path
+
     def trim_video(self, start: float, end: float, output_path: str):
         """Cut video between start and end timestamps"""
         try:
@@ -222,17 +436,28 @@ class VideoProcessor:
         - resolution: e.g. "1080x1920"
         - rotation: 0, 90, 180, 270
         - flip_horizontal: True to mirror horizontally
-        - resize_mode: "fit" (preserve entire frame, padded) or "crop" (center-crop fill)
+        - resize_mode:
+            "fit"        -> preserve full frame with padding
+            "crop"       -> center-crop fill
+            "smart_crop" -> head-tracked crop
+            "fit_blur"   -> blurred background + centered foreground
         """
         try:
             filters = []
+            post_filters = self._rotation_and_flip_filters(rotation, flip_horizontal)
 
+            tw: Optional[int] = None
+            th: Optional[int] = None
             if resolution:
                 res_parts = resolution.split("x")
                 if len(res_parts) == 2:
                     tw, th = int(res_parts[0]), int(res_parts[1])
+                    if resize_mode == "fit_blur":
+                        return self._transform_with_fit_blur(output_path, tw, th, post_filters)
 
-                    if resize_mode == "crop":
+                    if resize_mode == "smart_crop":
+                        filters.append(self._build_smart_crop_filter(tw, th))
+                    elif resize_mode == "crop":
                         if aspect_ratio:
                             parts = aspect_ratio.split(":")
                             if len(parts) == 2:
@@ -263,17 +488,7 @@ class VideoProcessor:
                         f":if(gt(iw/ih\\,{ar_w}/{ar_h})\\,ih\\,iw*{ar_h}/{ar_w})"
                     )
 
-            # --- Rotation ---
-            if rotation == 90:
-                filters.append("transpose=1")
-            elif rotation == 180:
-                filters.append("transpose=1,transpose=1")
-            elif rotation == 270:
-                filters.append("transpose=2")
-
-            # --- Flip ---
-            if flip_horizontal:
-                filters.append("hflip")
+            filters.extend(post_filters)
 
             if not filters:
                 # Nothing to do, just copy

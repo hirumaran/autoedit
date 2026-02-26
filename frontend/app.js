@@ -49,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let flipHorizontal = false;
     let customAspect = null; // { w, h } or null
     let selectedCropPreset = null;
+    let selectedFramingMode = 'fit_blur';
     const styleButtonClasses = {
         active: ['active', 'border-[#F4E04D]', 'bg-[#F4E04D]/10', 'text-[#F4E04D]'],
         inactive: ['border-[#333]', 'text-gray-400']
@@ -190,6 +191,19 @@ document.addEventListener('DOMContentLoaded', () => {
             if (selectedCropPreset === 'auto') {
                 selectedCropPreset = selectedAspect; // Use platform default
             }
+        });
+    });
+
+    // Framing mode buttons
+    document.querySelectorAll('.framing-mode-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.framing-mode-btn').forEach(b => {
+                b.classList.remove('border-[#F4E04D]', 'bg-[#F4E04D]/10', 'text-[#F4E04D]');
+                b.classList.add('border-[#333]', 'text-gray-400');
+            });
+            btn.classList.remove('border-[#333]', 'text-gray-400');
+            btn.classList.add('border-[#F4E04D]', 'bg-[#F4E04D]/10', 'text-[#F4E04D]');
+            selectedFramingMode = btn.dataset.framingMode || 'fit_blur';
         });
     });
 
@@ -596,58 +610,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    if (confirmRenderBtn) {
-        confirmRenderBtn.addEventListener('click', async () => {
-            if (!currentVideoId) return;
-
-            // Gather cuts
-            const cuts = [];
-            document.querySelectorAll('.cut-checkbox:checked').forEach(cb => {
-                cuts.push({
-                    start: parseFloat(cb.dataset.start),
-                    end: parseFloat(cb.dataset.end)
-                });
-            });
-
-            // Gather params
-            const transcript = reviewTranscript.value;
-            const burnSubs = document.getElementById('burn-subs-toggle').checked;
-
-            // UI Update
-            reviewContainer.classList.add('hidden');
-            processingContainer.classList.remove('hidden');
-            updateProgress(50, 'RENDERING REALITY...');
-
-            try {
-                const res = await fetch('/api/render', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        video_id: currentVideoId,
-                        custom_segments: cuts.length > 0 ? cuts : null,
-                        manual_transcript: transcript,
-                        style_preset: selectedStyle,
-                        add_subtitles: burnSubs,
-                        add_music: addMusicToggle ? addMusicToggle.checked : false,
-                        music_file: selectedMusicFile,
-                        music_volume: musicVolume ? parseInt(musicVolume.value) / 100 : 0.3
-                    })
-                });
-
-                if (!res.ok) {
-                    throw new Error(`Render failed: ${res.status}`);
-                }
-
-                // Start polling for completion
-                pollStatus(currentVideoId);
-
-            } catch (e) {
-                console.error(e);
-                showError('Render failed: ' + e.message);
-            }
-        });
-    }
-
     async function pollStatus(videoId) {
         const interval = setInterval(async () => {
             try {
@@ -690,9 +652,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const platformLabel = document.getElementById('review-platform-label');
         const aspectLabel = document.getElementById('review-aspect-label');
         const formatLabel = document.getElementById('review-format-label');
+        const framingLabel = document.getElementById('review-framing-label');
         if (platformLabel) platformLabel.textContent = selectedPlatform.toUpperCase().replace('-', ' ');
         if (aspectLabel) aspectLabel.textContent = customAspect ? `${customAspect.w}:${customAspect.h}` : selectedAspect;
         if (formatLabel) formatLabel.textContent = selectedFormat.toUpperCase();
+        if (framingLabel) {
+            framingLabel.textContent = selectedFramingMode === 'smart_crop' ? 'SMART CROP' : 'FIT + BLUR';
+        }
 
         // Re-create Lucide icons for new elements in review container
         lucide.createIcons();
@@ -901,12 +867,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         manual_transcript: transcript,
                         style_preset: selectedStyle,
                         add_subtitles: burnSubs,
+                        add_music: addMusicToggle ? addMusicToggle.checked : false,
+                        music_file: selectedMusicFile,
+                        music_volume: musicVolume ? parseInt(musicVolume.value, 10) / 100 : 0.3,
                         platform: selectedPlatform,
                         format: selectedFormat,
                         aspect_ratio: customAspect ? `${customAspect.w}:${customAspect.h}` : (selectedCropPreset || selectedAspect),
                         resolution: selectedRes,
                         rotation: rotationDeg,
-                        flip_horizontal: flipHorizontal
+                        flip_horizontal: flipHorizontal,
+                        framing_mode: selectedFramingMode
                     })
                 });
                 const d = await res.json();

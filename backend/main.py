@@ -407,6 +407,7 @@ class RenderRequest(BaseModel):
     resolution: Optional[str] = None
     rotation: Optional[int] = 0
     flip_horizontal: Optional[bool] = False
+    framing_mode: Optional[str] = "fit_blur"
 
 @app.post("/api/process")
 async def process_video(request: ProcessRequest, background_tasks: BackgroundTasks):
@@ -457,7 +458,8 @@ async def render_video(request: RenderRequest, background_tasks: BackgroundTasks
         request.aspect_ratio,
         request.resolution,
         request.rotation or 0,
-        request.flip_horizontal or False
+        request.flip_horizontal or False,
+        (request.framing_mode or "fit_blur")
     )
     
     return {
@@ -963,7 +965,8 @@ def render_video_pipeline(
     aspect_ratio: Optional[str] = None,
     resolution: Optional[str] = None,
     rotation: int = 0,
-    flip_horizontal: bool = False
+    flip_horizontal: bool = False,
+    framing_mode: str = "fit_blur"
 ):
     """Phase 2: Trim & Render"""
     try:
@@ -1042,7 +1045,13 @@ def render_video_pipeline(
         needs_transform = aspect_ratio or rotation or flip_horizontal
         if needs_transform:
             jobs[video_id]["status"] = "transforming"
-            jobs[video_id]["message"] = f"Applying aspect ratio ({aspect_ratio or 'auto'})..."
+            selected_mode = (framing_mode or "fit_blur").lower()
+            if selected_mode not in {"fit", "crop", "smart_crop", "fit_blur"}:
+                selected_mode = "fit_blur"
+
+            jobs[video_id]["message"] = (
+                f"Applying aspect ratio ({aspect_ratio or 'auto'}) with {selected_mode}..."
+            )
             persist_job(video_id)
             
             transformed_path = str(TEMP_DIR / f"{video_id}_transformed.mp4")
@@ -1052,10 +1061,14 @@ def render_video_pipeline(
                 aspect_ratio=aspect_ratio,
                 resolution=resolution,
                 rotation=rotation,
-                flip_horizontal=flip_horizontal
+                flip_horizontal=flip_horizontal,
+                resize_mode=selected_mode
             )
             current_path = transformed_path
-            edits_applied.append(f"Transformed: AR={aspect_ratio or 'auto'}, Rot={rotation}°, Flip={'yes' if flip_horizontal else 'no'}")
+            edits_applied.append(
+                f"Transformed: AR={aspect_ratio or 'auto'}, Mode={selected_mode}, "
+                f"Rot={rotation}°, Flip={'yes' if flip_horizontal else 'no'}"
+            )
             print(f"🎬 Transform applied for {video_id}")
         
         # Generate Captions

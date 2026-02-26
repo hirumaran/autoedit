@@ -487,6 +487,8 @@
                         <span id="review-aspect-label" class="text-gray-400">9:16</span>
                         <span class="text-gray-500">·</span>
                         <span id="review-format-label" class="text-gray-400">SHORT</span>
+                        <span class="text-gray-500">·</span>
+                        <span id="review-framing-label" class="text-gray-400">FIT + BLUR</span>
                     </div>
                 </div>
 
@@ -561,6 +563,21 @@
                                 <button
                                     class="crop-preset-btn border border-[#333] text-gray-400 px-3 py-2 rounded font-mono text-[10px] hover:bg-[#F4E04D]/10 hover:border-[#F4E04D] hover:text-[#F4E04D] transition-all"
                                     data-crop="auto">Auto (Platform)</button>
+                            </div>
+                        </div>
+
+                        <div id="framing-mode-picker" class="mb-4 p-3 bg-[#111] border border-[#222] rounded-lg">
+                            <div class="text-[10px] font-mono text-gray-500 mb-2 tracking-wider">FRAMING MODE</div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button
+                                    class="framing-mode-btn border border-[#333] text-gray-400 px-3 py-2 rounded font-mono text-[10px] hover:bg-[#F4E04D]/10 hover:border-[#F4E04D] hover:text-[#F4E04D] transition-all"
+                                    data-framing-mode="smart_crop">Smart Crop (Track)</button>
+                                <button
+                                    class="framing-mode-btn border border-[#F4E04D] bg-[#F4E04D]/10 text-[#F4E04D] px-3 py-2 rounded font-mono text-[10px] hover:bg-[#F4E04D]/15 hover:border-[#F4E04D] hover:text-[#F4E04D] transition-all"
+                                    data-framing-mode="fit_blur">Fit + Blur</button>
+                            </div>
+                            <div class="text-[10px] text-gray-500 mt-2 font-mono">
+                                Smart Crop follows faces. Fit + Blur preserves full frame context.
                             </div>
                         </div>
 
