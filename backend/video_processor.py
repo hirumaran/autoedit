@@ -192,7 +192,7 @@ class VideoProcessor:
             raise
 
     def resize_for_platform(self, platform: str, output_path: str):
-        """Resize video for social media using center-crop (no black bars)"""
+        """Resize video for social media while preserving full frame by default."""
         sizes = {
             "instagram-reel": "1080:1920",
             "tiktok": "1080:1920",
@@ -213,36 +213,55 @@ class VideoProcessor:
         aspect_ratio: str = None,
         resolution: str = None,
         rotation: int = 0,
-        flip_horizontal: bool = False
+        flip_horizontal: bool = False,
+        resize_mode: str = "fit"
     ):
         """
-        Apply aspect-ratio crop, scale, rotation, and flip in a single FFmpeg pass.
+        Apply resize, rotation, and flip in a single FFmpeg pass.
         - aspect_ratio: e.g. "9:16", "1:1", "16:9"
         - resolution: e.g. "1080x1920"
         - rotation: 0, 90, 180, 270
         - flip_horizontal: True to mirror horizontally
+        - resize_mode: "fit" (preserve entire frame, padded) or "crop" (center-crop fill)
         """
         try:
             filters = []
 
-            # --- Aspect ratio center-crop + scale ---
-            if aspect_ratio:
+            if resolution:
+                res_parts = resolution.split("x")
+                if len(res_parts) == 2:
+                    tw, th = int(res_parts[0]), int(res_parts[1])
+
+                    if resize_mode == "crop":
+                        if aspect_ratio:
+                            parts = aspect_ratio.split(":")
+                            if len(parts) == 2:
+                                ar_w, ar_h = int(parts[0]), int(parts[1])
+                            else:
+                                ar_w, ar_h = tw, th
+                        else:
+                            ar_w, ar_h = tw, th
+
+                        # Center-crop to target aspect ratio (fills frame).
+                        filters.append(
+                            f"crop=if(gt(iw/ih\\,{ar_w}/{ar_h})\\,ih*{ar_w}/{ar_h}\\,iw)"
+                            f":if(gt(iw/ih\\,{ar_w}/{ar_h})\\,ih\\,iw*{ar_h}/{ar_w})"
+                        )
+                        filters.append(f"scale={tw}:{th}")
+                    else:
+                        # Preserve entire frame; pad to target canvas.
+                        filters.append(f"scale={tw}:{th}:force_original_aspect_ratio=decrease")
+                        filters.append(f"pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2:color=0x101010")
+                        filters.append("setsar=1")
+            elif aspect_ratio:
+                # Fallback for requests with aspect ratio only and no explicit resolution.
                 parts = aspect_ratio.split(":")
                 if len(parts) == 2:
                     ar_w, ar_h = int(parts[0]), int(parts[1])
-                    # Center-crop to target aspect ratio (no black bars)
-                    # If source is wider than target → crop width
-                    # If source is taller than target → crop height
                     filters.append(
                         f"crop=if(gt(iw/ih\\,{ar_w}/{ar_h})\\,ih*{ar_w}/{ar_h}\\,iw)"
                         f":if(gt(iw/ih\\,{ar_w}/{ar_h})\\,ih\\,iw*{ar_h}/{ar_w})"
                     )
-
-            if resolution:
-                res_parts = resolution.split("x")
-                if len(res_parts) == 2:
-                    tw, th = res_parts
-                    filters.append(f"scale={tw}:{th}")
 
             # --- Rotation ---
             if rotation == 90:
