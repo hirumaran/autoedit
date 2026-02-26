@@ -192,7 +192,7 @@ class VideoProcessor:
             raise
 
     def resize_for_platform(self, platform: str, output_path: str):
-        """Resize video for social media"""
+        """Resize video for social media using center-crop (no black bars)"""
         sizes = {
             "instagram-reel": "1080:1920",
             "tiktok": "1080:1920",
@@ -200,16 +200,81 @@ class VideoProcessor:
             "instagram-post": "1080:1080",
         }
         size = sizes.get(platform, "1080:1920")
+        target_w, target_h = size.split(":")
+        return self.transform_video(
+            output_path,
+            aspect_ratio=f"{target_w}:{target_h}",
+            resolution=f"{target_w}x{target_h}"
+        )
+
+    def transform_video(
+        self,
+        output_path: str,
+        aspect_ratio: str = None,
+        resolution: str = None,
+        rotation: int = 0,
+        flip_horizontal: bool = False
+    ):
+        """
+        Apply aspect-ratio crop, scale, rotation, and flip in a single FFmpeg pass.
+        - aspect_ratio: e.g. "9:16", "1:1", "16:9"
+        - resolution: e.g. "1080x1920"
+        - rotation: 0, 90, 180, 270
+        - flip_horizontal: True to mirror horizontally
+        """
         try:
+            filters = []
+
+            # --- Aspect ratio center-crop + scale ---
+            if aspect_ratio:
+                parts = aspect_ratio.split(":")
+                if len(parts) == 2:
+                    ar_w, ar_h = int(parts[0]), int(parts[1])
+                    # Center-crop to target aspect ratio (no black bars)
+                    # If source is wider than target → crop width
+                    # If source is taller than target → crop height
+                    filters.append(
+                        f"crop=if(gt(iw/ih\\,{ar_w}/{ar_h})\\,ih*{ar_w}/{ar_h}\\,iw)"
+                        f":if(gt(iw/ih\\,{ar_w}/{ar_h})\\,ih\\,iw*{ar_h}/{ar_w})"
+                    )
+
+            if resolution:
+                res_parts = resolution.split("x")
+                if len(res_parts) == 2:
+                    tw, th = res_parts
+                    filters.append(f"scale={tw}:{th}")
+
+            # --- Rotation ---
+            if rotation == 90:
+                filters.append("transpose=1")
+            elif rotation == 180:
+                filters.append("transpose=1,transpose=1")
+            elif rotation == 270:
+                filters.append("transpose=2")
+
+            # --- Flip ---
+            if flip_horizontal:
+                filters.append("hflip")
+
+            if not filters:
+                # Nothing to do, just copy
+                import shutil
+                shutil.copy(self.video_path, output_path)
+                return output_path
+
+            vf = ",".join(filters)
             cmd = [
                 'ffmpeg', '-y',
                 '-i', self.video_path,
-                '-vf', f'scale={size}:force_original_aspect_ratio=decrease,pad={size}:(ow-iw)/2:(oh-ih)/2',
+                '-vf', vf,
                 '-c:a', 'copy',
+                '-preset', 'fast',
                 output_path
             ]
+            print(f"🎬 Transform: ffmpeg -vf '{vf}'")
             subprocess.run(cmd, check=True, capture_output=True)
+            print(f"✅ Transformed video → {output_path}")
             return output_path
         except Exception as e:
-            print(f"❌ Resize failed: {e}")
+            print(f"❌ Transform failed: {e}")
             raise

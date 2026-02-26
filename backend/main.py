@@ -149,6 +149,12 @@ class ProcessRequest(BaseModel):
     style_preset: Optional[str] = Field(default="sleek", pattern=r'^[a-zA-Z]+$', max_length=20)
     manual_transcript: Optional[str] = Field(default=None, max_length=50000)
     
+    # New UI fields mapped from frontend payload
+    platform: Optional[str] = None
+    format: Optional[str] = None
+    aspect_ratio: Optional[str] = None
+    resolution: Optional[str] = None
+    
     @field_validator('user_prompt')
     @classmethod
     def sanitize_user_prompt(cls, v):
@@ -393,6 +399,14 @@ class RenderRequest(BaseModel):
     add_music: bool = False
     music_file: Optional[str] = None  # Filename of selected music
     music_volume: float = 0.3  # 0.0 to 1.0
+    
+    # New UI fields mapped from frontend payload
+    platform: Optional[str] = None
+    format: Optional[str] = None
+    aspect_ratio: Optional[str] = None
+    resolution: Optional[str] = None
+    rotation: Optional[int] = 0
+    flip_horizontal: Optional[bool] = False
 
 @app.post("/api/process")
 async def process_video(request: ProcessRequest, background_tasks: BackgroundTasks):
@@ -439,7 +453,11 @@ async def render_video(request: RenderRequest, background_tasks: BackgroundTasks
         request.add_subtitles,
         request.add_music,
         request.music_file,
-        request.music_volume
+        request.music_volume,
+        request.aspect_ratio,
+        request.resolution,
+        request.rotation or 0,
+        request.flip_horizontal or False
     )
     
     return {
@@ -941,7 +959,11 @@ def render_video_pipeline(
     add_subtitles: bool,
     add_music: bool = False,
     music_file: Optional[str] = None,
-    music_volume: float = 0.3
+    music_volume: float = 0.3,
+    aspect_ratio: Optional[str] = None,
+    resolution: Optional[str] = None,
+    rotation: int = 0,
+    flip_horizontal: bool = False
 ):
     """Phase 2: Trim & Render"""
     try:
@@ -1015,6 +1037,26 @@ def render_video_pipeline(
             applied_ranges = [{"start": 0.0, "end": duration_end}]
 
         jobs[video_id]["progress"] = 80
+
+        # Apply aspect ratio crop / rotation / flip
+        needs_transform = aspect_ratio or rotation or flip_horizontal
+        if needs_transform:
+            jobs[video_id]["status"] = "transforming"
+            jobs[video_id]["message"] = f"Applying aspect ratio ({aspect_ratio or 'auto'})..."
+            persist_job(video_id)
+            
+            transformed_path = str(TEMP_DIR / f"{video_id}_transformed.mp4")
+            transform_processor = VideoProcessor(current_path)
+            transform_processor.transform_video(
+                transformed_path,
+                aspect_ratio=aspect_ratio,
+                resolution=resolution,
+                rotation=rotation,
+                flip_horizontal=flip_horizontal
+            )
+            current_path = transformed_path
+            edits_applied.append(f"Transformed: AR={aspect_ratio or 'auto'}, Rot={rotation}°, Flip={'yes' if flip_horizontal else 'no'}")
+            print(f"🎬 Transform applied for {video_id}")
         
         # Generate Captions
         caption_doc = build_caption_document(

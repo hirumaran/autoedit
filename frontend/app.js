@@ -39,6 +39,16 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastPrompt = 'Make this video engaging for social media';
     let selectedMusicFile = null;
     let wavesurfer = null; // Store WaveSurfer instance
+
+    // --- Platform, Format & Advanced Options State ---
+    let selectedPlatform = 'tiktok';
+    let selectedFormat = 'short';
+    let selectedAspect = '9:16';
+    let selectedRes = '1080x1920';
+    let rotationDeg = 0;
+    let flipHorizontal = false;
+    let customAspect = null; // { w, h } or null
+    let selectedCropPreset = null;
     const styleButtonClasses = {
         active: ['active', 'border-[#F4E04D]', 'bg-[#F4E04D]/10', 'text-[#F4E04D]'],
         inactive: ['border-[#333]', 'text-gray-400']
@@ -64,6 +74,163 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
         if (distortionControls) distortionControls.classList.remove('opacity-0');
     }, 500);
+
+    // === Platform + Format Selection ===
+    const platformBtnClasses = {
+        active: ['active', 'border-[#F4E04D]', 'bg-[#F4E04D]/10', 'text-[#F4E04D]'],
+        inactive: ['border-[#333]', 'bg-[#0a0a0a]', 'text-gray-400']
+    };
+
+    document.querySelectorAll('.platform-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.platform-btn').forEach(b => {
+                b.classList.remove(...platformBtnClasses.active);
+                b.classList.add(...platformBtnClasses.inactive);
+            });
+            btn.classList.remove(...platformBtnClasses.inactive);
+            btn.classList.add(...platformBtnClasses.active);
+            selectedPlatform = btn.dataset.platform;
+            selectedAspect = btn.dataset.aspect;
+            selectedRes = btn.dataset.res;
+        });
+    });
+
+    document.querySelectorAll('.format-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.format-btn').forEach(b => {
+                b.classList.remove('active', 'bg-[#F4E04D]', 'text-black');
+                b.classList.add('bg-[#0a0a0a]', 'text-gray-400');
+            });
+            btn.classList.remove('bg-[#0a0a0a]', 'text-gray-400');
+            btn.classList.add('active', 'bg-[#F4E04D]', 'text-black');
+            selectedFormat = btn.dataset.format;
+            const hint = document.getElementById('format-hint');
+            if (hint) {
+                hint.textContent = selectedFormat === 'short' ? 'Optimized for \u226460s clips' : 'Full-length video export';
+            }
+        });
+    });
+
+    // === Advanced Options Toolbar ===
+    const toggleAdvancedBtn = document.getElementById('toggle-advanced');
+    const advancedContent = document.getElementById('advanced-content');
+    const advancedChevron = document.getElementById('advanced-chevron');
+
+    if (toggleAdvancedBtn && advancedContent) {
+        toggleAdvancedBtn.addEventListener('click', () => {
+            advancedContent.classList.toggle('hidden');
+            if (advancedChevron) {
+                advancedChevron.style.transform = advancedContent.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
+            }
+            // Re-create Lucide icons for newly-visible content
+            lucide.createIcons();
+        });
+    }
+
+    // Rotate Button
+    const btnRotate = document.getElementById('btn-rotate');
+    const rotationIndicator = document.getElementById('rotation-indicator');
+    if (btnRotate) {
+        btnRotate.addEventListener('click', () => {
+            rotationDeg = (rotationDeg + 90) % 360;
+            if (rotationDeg === 0) {
+                rotationIndicator?.classList.add('hidden');
+                btnRotate.classList.remove('border-[#F4E04D]', 'text-[#F4E04D]', 'bg-[#F4E04D]/10');
+                btnRotate.classList.add('border-[#333]', 'text-gray-400', 'bg-[#111]');
+            } else {
+                if (rotationIndicator) {
+                    rotationIndicator.classList.remove('hidden');
+                    rotationIndicator.textContent = rotationDeg + '\u00b0';
+                }
+                btnRotate.classList.remove('border-[#333]', 'text-gray-400', 'bg-[#111]');
+                btnRotate.classList.add('border-[#F4E04D]', 'text-[#F4E04D]', 'bg-[#F4E04D]/10');
+            }
+        });
+    }
+
+    // Flip Button
+    const btnFlip = document.getElementById('btn-flip');
+    const flipIndicator = document.getElementById('flip-indicator');
+    if (btnFlip) {
+        btnFlip.addEventListener('click', () => {
+            flipHorizontal = !flipHorizontal;
+            if (flipHorizontal) {
+                flipIndicator?.classList.remove('hidden');
+                btnFlip.classList.remove('border-[#333]', 'text-gray-400', 'bg-[#111]');
+                btnFlip.classList.add('border-[#F4E04D]', 'text-[#F4E04D]', 'bg-[#F4E04D]/10');
+            } else {
+                flipIndicator?.classList.add('hidden');
+                btnFlip.classList.remove('border-[#F4E04D]', 'text-[#F4E04D]', 'bg-[#F4E04D]/10');
+                btnFlip.classList.add('border-[#333]', 'text-gray-400', 'bg-[#111]');
+            }
+        });
+    }
+
+    // Crop Button — toggles presets panel
+    const btnCrop = document.getElementById('btn-crop');
+    const cropPresets = document.getElementById('crop-presets');
+    if (btnCrop && cropPresets) {
+        btnCrop.addEventListener('click', () => {
+            cropPresets.classList.toggle('hidden');
+            // Hide custom aspect if open
+            document.getElementById('custom-aspect-input')?.classList.add('hidden');
+        });
+    }
+
+    // Crop preset buttons
+    document.querySelectorAll('.crop-preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.crop-preset-btn').forEach(b => {
+                b.classList.remove('border-[#F4E04D]', 'bg-[#F4E04D]/10', 'text-[#F4E04D]');
+                b.classList.add('border-[#333]', 'text-gray-400');
+            });
+            btn.classList.remove('border-[#333]', 'text-gray-400');
+            btn.classList.add('border-[#F4E04D]', 'bg-[#F4E04D]/10', 'text-[#F4E04D]');
+            selectedCropPreset = btn.dataset.crop;
+            if (selectedCropPreset === 'auto') {
+                selectedCropPreset = selectedAspect; // Use platform default
+            }
+        });
+    });
+
+    // Custom Aspect Button — toggles input panel
+    const btnCustomAspect = document.getElementById('btn-custom-aspect');
+    const customAspectInput = document.getElementById('custom-aspect-input');
+    if (btnCustomAspect && customAspectInput) {
+        btnCustomAspect.addEventListener('click', () => {
+            customAspectInput.classList.toggle('hidden');
+            // Hide crop presets if open
+            cropPresets?.classList.add('hidden');
+        });
+    }
+
+    // Apply custom aspect
+    const applyAspectBtn = document.getElementById('apply-aspect');
+    if (applyAspectBtn) {
+        applyAspectBtn.addEventListener('click', () => {
+            const w = parseInt(document.getElementById('aspect-w')?.value || '9');
+            const h = parseInt(document.getElementById('aspect-h')?.value || '16');
+            if (w > 0 && h > 0) {
+                customAspect = { w, h };
+                btnCustomAspect?.classList.remove('border-[#333]', 'text-gray-400', 'bg-[#111]');
+                btnCustomAspect?.classList.add('border-[#F4E04D]', 'text-[#F4E04D]', 'bg-[#F4E04D]/10');
+            }
+        });
+    }
+
+    // Reset custom aspect
+    const resetAspectBtn = document.getElementById('reset-aspect');
+    if (resetAspectBtn) {
+        resetAspectBtn.addEventListener('click', () => {
+            customAspect = null;
+            const wInput = document.getElementById('aspect-w');
+            const hInput = document.getElementById('aspect-h');
+            if (wInput) wInput.value = '9';
+            if (hInput) hInput.value = '16';
+            btnCustomAspect?.classList.remove('border-[#F4E04D]', 'text-[#F4E04D]', 'bg-[#F4E04D]/10');
+            btnCustomAspect?.classList.add('border-[#333]', 'text-gray-400', 'bg-[#111]');
+        });
+    }
 
     // --- Event Listeners ---
 
@@ -261,6 +428,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Hide upload, show processing
                 uploadContainer.classList.add('hidden');
                 distortionControls.classList.add('hidden');
+                const platformSelector = document.getElementById('platform-format-selector');
+                if (platformSelector) platformSelector.classList.add('hidden');
                 processingContainer.classList.remove('hidden');
                 if (errorText) {
                     errorText.classList.add('hidden');
@@ -294,7 +463,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             style_preset: selectedStyle,
                             add_subtitles: burnSubs,
                             trim_boring_parts: trimBoring,
-                            user_prompt: promptText || undefined
+                            user_prompt: promptText || undefined,
+                            platform: selectedPlatform,
+                            format: selectedFormat,
+                            aspect_ratio: selectedAspect,
+                            resolution: selectedRes
                         })
                     });
 
@@ -513,6 +686,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function populateReviewUI(videoId) {
+        // Update platform badge in review screen
+        const platformLabel = document.getElementById('review-platform-label');
+        const aspectLabel = document.getElementById('review-aspect-label');
+        const formatLabel = document.getElementById('review-format-label');
+        if (platformLabel) platformLabel.textContent = selectedPlatform.toUpperCase().replace('-', ' ');
+        if (aspectLabel) aspectLabel.textContent = customAspect ? `${customAspect.w}:${customAspect.h}` : selectedAspect;
+        if (formatLabel) formatLabel.textContent = selectedFormat.toUpperCase();
+
+        // Re-create Lucide icons for new elements in review container
+        lucide.createIcons();
+
         try {
             const res = await fetch(`/api/analysis/${videoId}`);
             const data = await res.json();
@@ -716,7 +900,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         custom_segments: finalSegments,
                         manual_transcript: transcript,
                         style_preset: selectedStyle,
-                        add_subtitles: burnSubs
+                        add_subtitles: burnSubs,
+                        platform: selectedPlatform,
+                        format: selectedFormat,
+                        aspect_ratio: customAspect ? `${customAspect.w}:${customAspect.h}` : (selectedCropPreset || selectedAspect),
+                        resolution: selectedRes,
+                        rotation: rotationDeg,
+                        flip_horizontal: flipHorizontal
                     })
                 });
                 const d = await res.json();
