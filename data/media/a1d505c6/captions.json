@@ -1,0 +1,43 @@
+{
+  "videoId": "a1d505c6",
+  "duration": 11.067,
+  "stylePreset": "sleek",
+  "captions": [
+    {
+      "id": "c1",
+      "start": 0.0,
+      "end": 3.689,
+      "text": "Brian Euguner",
+      "words": [],
+      "layout": {
+        "x": 0.5,
+        "y": 0.82,
+        "anchor": "center"
+      }
+    },
+    {
+      "id": "c2",
+      "start": 3.689,
+      "end": 7.378,
+      "text": "Don't stop grinding otherwise you would turn into a bum like hero in Zack with no bitches or rizz",
+      "words": [],
+      "layout": {
+        "x": 0.5,
+        "y": 0.82,
+        "anchor": "center"
+      }
+    },
+    {
+      "id": "c3",
+      "start": 7.378,
+      "end": 11.067,
+      "text": "It doesn't matter if you fumble the Chos start investing in the Youngins so you have a bad year at your 30.",
+      "words": [],
+      "layout": {
+        "x": 0.5,
+        "y": 0.82,
+        "anchor": "center"
+      }
+    }
+  ]
+}

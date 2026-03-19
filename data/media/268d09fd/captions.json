@@ -1,0 +1,67 @@
+{
+  "videoId": "268d09fd",
+  "duration": 15.68,
+  "stylePreset": "minimal",
+  "captions": [
+    {
+      "id": "c1",
+      "start": 0.0,
+      "end": 3.136,
+      "text": "Rest in peace my granny, she got hit by a bazooka",
+      "words": [],
+      "layout": {
+        "x": 0.5,
+        "y": 0.82,
+        "anchor": "center"
+      }
+    },
+    {
+      "id": "c2",
+      "start": 3.136,
+      "end": 6.272,
+      "text": "Kaboom, kablaow, kaboom",
+      "words": [],
+      "layout": {
+        "x": 0.5,
+        "y": 0.82,
+        "anchor": "center"
+      }
+    },
+    {
+      "id": "c3",
+      "start": 6.272,
+      "end": 9.408,
+      "text": "Rest in peace my granny, she got hit by a bazooka",
+      "words": [],
+      "layout": {
+        "x": 0.5,
+        "y": 0.82,
+        "anchor": "center"
+      }
+    },
+    {
+      "id": "c4",
+      "start": 9.408,
+      "end": 12.544,
+      "text": "Yeah, I think about her every time I hit the hookah",
+      "words": [],
+      "layout": {
+        "x": 0.5,
+        "y": 0.82,
+        "anchor": "center"
+      }
+    },
+    {
+      "id": "c5",
+      "start": 12.544,
+      "end": 15.68,
+      "text": "Kaboom, kablaow, kaboom",
+      "words": [],
+      "layout": {
+        "x": 0.5,
+        "y": 0.82,
+        "anchor": "center"
+      }
+    }
+  ]
+}

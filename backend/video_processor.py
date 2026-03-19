@@ -9,6 +9,13 @@ try:
 except Exception:  # pragma: no cover
     cv2 = None  # type: ignore
 
+# MoviePy engine — provides clean Python API over FFmpeg
+try:
+    from editing_engine import MoviePyEngine, MoviePyAudioEngine  # type: ignore
+    _MOVIEPY_ENGINE_AVAILABLE = True
+except ImportError:
+    _MOVIEPY_ENGINE_AVAILABLE = False
+
 SUBTITLE_STYLE_MAP = {
     "meme": {
         "FontName": "Impact",
@@ -336,37 +343,80 @@ class VideoProcessor:
         return output_path
 
     def trim_video(self, start: float, end: float, output_path: str):
-        """Cut video between start and end timestamps"""
+        """Cut video between start and end timestamps.
+        
+        Tries MoviePy first for clean re-encoding; falls back to the original
+        ffmpeg -c copy fast path if MoviePy is unavailable or fails.
+        """
+        # --- MoviePy path ---
+        if _MOVIEPY_ENGINE_AVAILABLE:
+            try:
+                with MoviePyEngine(self.video_path) as engine:
+                    engine.trim(start, end, output_path, use_ffmpeg_fallback=False)
+                print(f"✂️ MoviePy trimmed: {start}s to {end}s")
+                return output_path
+            except Exception as e:
+                print(f"⚠️ MoviePy trim failed ({e}); using FFmpeg fallback")
+
+        # --- FFmpeg fallback (fast stream copy, no re-encode) ---
         try:
-            # Use simple ffmpeg command for reliability
             cmd = [
-                'ffmpeg', '-y',  # Overwrite output
+                'ffmpeg', '-y',
                 '-ss', str(start),
                 '-i', self.video_path,
                 '-t', str(end - start),
-                '-c', 'copy',  # Fast copy without re-encoding
+                '-c', 'copy',
                 output_path
             ]
             subprocess.run(cmd, check=True, capture_output=True)
-            print(f"✂️ Trimmed video: {start}s to {end}s")
+            print(f"✂️ FFmpeg trimmed: {start}s to {end}s")
             return output_path
         except Exception as e:
             print(f"❌ Trim failed: {e}")
             raise
 
-    def add_subtitles(self, subtitle_file: str, output_path: str, style: Dict = None):
-        """Burn subtitles into video"""
+    def add_subtitles(
+        self,
+        subtitle_file: str,
+        output_path: str,
+        style: Dict = None,
+        style_preset: str = "sleek",
+        subtitle_data: List[Dict] = None,
+        video_width: int = 1080,
+        video_height: int = 1920,
+    ):
+        """Burn subtitles into video.
+
+        When *subtitle_data* (list of dicts with text/start/end) is provided,
+        MoviePy TextClip compositing is used for cleaner, anti-aliased rendering.
+        When only *subtitle_file* (SRT/ASS path) is given, the original FFmpeg
+        ``subtitles=`` filter path is used as fallback.
+        """
+        # --- MoviePy path (requires subtitle_data with timestamps) ---
+        if _MOVIEPY_ENGINE_AVAILABLE and subtitle_data:
+            try:
+                with MoviePyEngine(self.video_path) as engine:
+                    return engine.add_subtitles(
+                        subtitle_data,
+                        output_path,
+                        style_preset=style_preset,
+                        video_width=video_width,
+                        video_height=video_height,
+                    )
+            except Exception as e:
+                print(f"⚠️ MoviePy subtitle burn failed ({e}); FFmpeg fallback")
+
+        # --- FFmpeg ASS/SRT fallback ---
         try:
-            # Escape subtitle path for FFmpeg
-            subtitle_file = subtitle_file.replace('\\', '/').replace(':', '\\\\:')
+            esc_file = subtitle_file.replace('\\', '/').replace(':', '\\\\:')
             style = style or SUBTITLE_STYLE_MAP.get("sleek")
             style_parts = [f"{key}={value}" for key, value in style.items()]
             force_style = ",".join(style_parts)
             cmd = [
                 'ffmpeg', '-y',
                 '-i', self.video_path,
-                '-vf', f"subtitles={subtitle_file}:force_style='{force_style}'",
-                '-c:a', 'copy',  # Copy audio without re-encoding
+                '-vf', f"subtitles={esc_file}:force_style='{force_style}'",
+                '-c:a', 'copy',
                 output_path
             ]
             subprocess.run(cmd, check=True, capture_output=True)
@@ -374,14 +424,50 @@ class VideoProcessor:
             return output_path
         except Exception as e:
             print(f"❌ Subtitle addition failed: {e}")
-            # Fallback: just copy the video
             import shutil
             shutil.copy(self.video_path, output_path)
             return output_path
 
     def add_overlay(self, overlay_image: str, position: str, output_path: str):
-        """Add logo/watermark overlay"""
-        positions = {
+        """Add logo/watermark overlay.
+        
+        Tries MoviePy CompositeVideoClip; falls back to ffmpeg-python overlay.
+        """
+        # Pixel-offset positions for MoviePy (relative to frame edges)
+        moviepy_positions = {
+            "top-left": (10, 10),
+            "top-right": lambda w, h, ow, oh: (w - ow - 10, 10),
+            "bottom-left": lambda w, h, ow, oh: (10, h - oh - 10),
+            "bottom-right": lambda w, h, ow, oh: (w - ow - 10, h - oh - 10),
+            "center": "center",
+        }
+
+        # --- MoviePy path ---
+        if _MOVIEPY_ENGINE_AVAILABLE:
+            try:
+                from moviepy.editor import VideoFileClip, ImageClip, CompositeVideoClip  # type: ignore
+                base = VideoFileClip(self.video_path)
+                logo = ImageClip(overlay_image).set_duration(base.duration)
+                pos_key = moviepy_positions.get(position, (10, 10))
+                if callable(pos_key):
+                    bw, bh = base.size
+                    lw, lh = logo.size
+                    pos_val = pos_key(bw, bh, lw, lh)
+                else:
+                    pos_val = pos_key
+                composed = CompositeVideoClip([base, logo.set_position(pos_val)])
+                composed.write_videofile(
+                    output_path, codec="libx264", audio_codec="aac",
+                    preset="fast", logger=None, threads=2,
+                )
+                base.close()
+                print(f"🖼️ MoviePy overlay ({position}) → {output_path}")
+                return output_path
+            except Exception as e:
+                print(f"⚠️ MoviePy overlay failed ({e}); ffmpeg-python fallback")
+
+        # --- ffmpeg-python fallback ---
+        ffmpeg_positions = {
             "top-left": "10:10",
             "top-right": "W-w-10:10",
             "bottom-left": "10:H-h-10",
@@ -394,7 +480,7 @@ class VideoProcessor:
                 .input(self.video_path)
                 .overlay(
                     ffmpeg.input(overlay_image),
-                    x=positions.get(position, "10:10")
+                    x=ffmpeg_positions.get(position, "10:10")
                 )
                 .output(output_path)
                 .overwrite_output()

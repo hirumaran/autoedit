@@ -1,4 +1,3 @@
-
 import pytest
 from unittest.mock import MagicMock, patch
 from pathlib import Path
@@ -31,7 +30,7 @@ def test_apply_viral_edit_success(viral_editor, mock_music_agent):
         
         # Verify FFmpeg call
         args = mock_run.call_args[0][0]
-        # Check volume filter logic
+        # Check volume filter logic — format: if(between(...), duck_vol, bg_vol)
         assert "volume='if(between(t,10,20), 0.15, 0.5)':eval=frame" in args[args.index("-filter_complex") + 1]
 
 def test_apply_viral_edit_preview(viral_editor):

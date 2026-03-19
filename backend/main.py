@@ -18,6 +18,11 @@ from datetime import datetime
 from dataclasses import asdict
 from collections import defaultdict
 import time
+import asyncio
+import contextlib
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+import logging
 
 # Rate Limiting (simple in-memory implementation)
 class RateLimiter:
@@ -81,7 +86,41 @@ def resolve_dir(env_name: str, default: Path) -> Path:
         return Path(value).expanduser().resolve()
     return default.resolve()
 
-app = FastAPI(title="AI Video Editor MVP")
+logger = logging.getLogger(__name__)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    FastAPI lifespan — replaces @app.on_event("startup"/"shutdown").
+    Uses asynccontextmanager so Ctrl+C triggers clean shutdown without
+    asyncio.CancelledError spam in the log.
+    """
+    # ── Startup ──────────────────────────────────────────────────────────────
+    # Fix SSL certs immediately (before any outbound request)
+    try:
+        from backend.utils.model_downloader import fix_macos_ssl
+        fix_macos_ssl()
+    except Exception:
+        pass
+
+    # Initialize all services that DON'T need the model
+    # (VideoAnalyzer now lazy-loads Florence-2 on first use)
+    try:
+        from backend.services import initialize_services
+        initialize_services()
+    except Exception as exc:
+        logger.error(f"Service init error (non-fatal): {exc}")
+
+    logger.info("✅ Services ready!")
+    yield   # ← app runs here
+
+    # ── Shutdown ─────────────────────────────────────────────────────────────
+    # Suppress the CancelledError that uvicorn raises on SIGINT
+    with contextlib.suppress(asyncio.CancelledError, Exception):
+        logger.info("🛑 Shutting down services...")
+
+
+app = FastAPI(title="AI Video Editor MVP", lifespan=lifespan)
 app.include_router(transcribe_router, prefix="/api")
 
 # CORS
@@ -907,27 +946,17 @@ def analyze_video_pipeline(
         jobs[video_id]["overall_score"] = ai_decisions.get("overall_score", 5)
         jobs[video_id]["progress"] = 50
         
-        # 4. AI Selects Music automatically
         jobs[video_id]["status"] = "choosing_music"
         jobs[video_id]["message"] = "AI is picking the perfect soundtrack..."
         persist_job(video_id)
         
-        try:
-            suggested_tracks = music_agent.recommend_music(user_prompt, jobs[video_id])
-            if suggested_tracks:
-                top_track = suggested_tracks[0]
-                jobs[video_id]["ai_suggested_music"] = asdict(top_track)
-                print(f"🎵 AI picked: {top_track.title}")
-        except Exception as me:
-            print(f"⚠️ AI Music choice failed: {me}")
-
-        jobs[video_id]["status"] = "choosing_music"
-        jobs[video_id]["message"] = "AI is picking the perfect soundtrack..."
-        persist_job(video_id)
-        
+        virality = {"score": 0, "virality_score": 0}  # safe default
         try:
             # 1. Virality Rating
             virality = virality_rater.rate_content(full_transcript, user_prompt, ai_decisions.get("overall_score", 5))
+            # Normalise key: ViralityRater returns virality_score, expose as score too
+            if "virality_score" in virality and "score" not in virality:
+                virality["score"] = virality["virality_score"]
             jobs[video_id]["virality_analysis"] = virality
             
             # 2. Music Selection (with trends)
@@ -941,7 +970,10 @@ def analyze_video_pipeline(
 
         # Mark as analyzed, waiting for user review
         jobs[video_id]["status"] = "analyzed"
-        jobs[video_id]["message"] = f"Analysis complete! Retention: {ai_decisions.get('overall_score', 5)}/10, Virality: {virality.get('score', 0)}/100"
+        jobs[video_id]["message"] = (
+            f"Analysis complete! Retention: {ai_decisions.get('overall_score', 5)}/10, "
+            f"Virality: {virality.get('virality_score', virality.get('score', 0))}/100"
+        )
         persist_job(video_id)
 
     except Exception as e:

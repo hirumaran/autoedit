@@ -12,6 +12,13 @@ from typing import Dict, List, Optional
 from dataclasses import dataclass, asdict
 import requests
 
+# MoviePy audio engine for trim and fade operations
+try:
+    from editing_engine import MoviePyAudioEngine  # type: ignore
+    _AUDIO_ENGINE_AVAILABLE = True
+except ImportError:
+    _AUDIO_ENGINE_AVAILABLE = False
+
 
 @dataclass
 class MusicTrack:
@@ -244,26 +251,37 @@ class MusicLibraryService:
         end: float, 
         output_name: str = None
     ) -> str:
-        """Trim audio to specified start/end times."""
+        """Trim audio to specified start/end times.
+        
+        Uses MoviePyAudioEngine for clean subclip; falls back to ffmpeg -c copy.
+        """
         track = self.library.get(track_id)
         if not track:
             raise ValueError(f"Track not found: {track_id}")
         
         input_path = self.music_dir / track.filename
         output_name = output_name or f"trimmed_{track.filename}"
-        output_path = self.music_dir / output_name
-        
+        output_path = str(self.music_dir / output_name)
+
+        # --- MoviePy path ---
+        if _AUDIO_ENGINE_AVAILABLE:
+            try:
+                with MoviePyAudioEngine(str(input_path)) as engine:
+                    return engine.trim(start, end, output_path)
+            except Exception as exc:
+                print(f"⚠️ MoviePy audio trim failed ({exc}); FFmpeg fallback")
+
+        # --- FFmpeg fallback ---
         cmd = [
             "ffmpeg", "-y",
             "-i", str(input_path),
             "-ss", str(start),
             "-to", str(end),
             "-c", "copy",
-            str(output_path)
+            output_path
         ]
-        
         subprocess.run(cmd, check=True, capture_output=True)
-        return str(output_path)
+        return output_path
 
     def add_fade(
         self,
@@ -272,26 +290,36 @@ class MusicLibraryService:
         fade_out: float = 2.0,
         output_name: str = None
     ) -> str:
-        """Add fade in/out to audio."""
+        """Add fade in/out to audio.
+        
+        Uses MoviePyAudioEngine for clean fade; falls back to ffmpeg afade filter.
+        """
         track = self.library.get(track_id)
         if not track:
             raise ValueError(f"Track not found: {track_id}")
         
         input_path = self.music_dir / track.filename
         output_name = output_name or f"faded_{track.filename}"
-        output_path = self.music_dir / output_name
-        
+        output_path = str(self.music_dir / output_name)
+
+        # --- MoviePy path ---
+        if _AUDIO_ENGINE_AVAILABLE:
+            try:
+                with MoviePyAudioEngine(str(input_path)) as engine:
+                    return engine.add_fade(output_path, fade_in=fade_in, fade_out=fade_out)
+            except Exception as exc:
+                print(f"⚠️ MoviePy audio fade failed ({exc}); FFmpeg fallback")
+
+        # --- FFmpeg fallback ---
         fade_out_start = max(0, track.duration - fade_out)
-        
         cmd = [
             "ffmpeg", "-y",
             "-i", str(input_path),
             "-af", f"afade=t=in:st=0:d={fade_in},afade=t=out:st={fade_out_start}:d={fade_out}",
-            str(output_path)
+            output_path
         ]
-        
         subprocess.run(cmd, check=True, capture_output=True)
-        return str(output_path)
+        return output_path
 
     def add_music_to_video(
         self,

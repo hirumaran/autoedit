@@ -199,3 +199,89 @@ class EffectProcessor:
 # Module-level instance
 effects_library = EffectsLibrary()
 effect_processor = EffectProcessor()
+
+
+# ---------------------------------------------------------------------------
+# MoviePy-based clip-level effect processor
+# ---------------------------------------------------------------------------
+try:
+    from editing_engine import MoviePyEngine  # type: ignore
+    _MOVIEPY_AVAILABLE = True
+except ImportError:
+    _MOVIEPY_AVAILABLE = False
+
+
+class MoviePyEffectProcessor:
+    """
+    Apply visual effects to entire VideoFileClip objects using MoviePy.
+
+    Complements the existing ``EffectProcessor`` (which works at frame level
+    for real-time previews). This processor re-encodes the full video, enabling
+    proper speed ramps, fade transitions, zoom, and colour grading.
+
+    Usage::
+
+        proc = MoviePyEffectProcessor()
+        out = proc.apply_effect_to_file(
+            "/input/clip.mp4", "/output/clip.mp4",
+            effect_id="color_grade_warm", params={"temperature": 30}
+        )
+    """
+
+    def apply_effect_to_file(
+        self,
+        input_path: str,
+        output_path: str,
+        effect_id: str,
+        params: dict = None,
+    ) -> str:
+        """
+        Apply a clip-level effect and write the result to *output_path*.
+
+        Returns *output_path* on success. Falls back to copying the source file
+        if MoviePy is unavailable or the effect fails.
+        """
+        if not _MOVIEPY_AVAILABLE:
+            logger.warning("MoviePy not available; skipping clip-level effect")
+            import shutil
+            shutil.copy(input_path, output_path)
+            return output_path
+
+        with MoviePyEngine(input_path) as engine:
+            return engine.apply_effect(output_path, effect_id, params or {})
+
+    def apply_effects_chain(
+        self,
+        input_path: str,
+        output_path: str,
+        effects: list,
+    ) -> str:
+        """
+        Apply multiple effects in sequence.
+
+        *effects* is a list of ``{"id": str, "params": dict}`` dicts.
+        Each successive effect re-uses the previously generated output as its input.
+        """
+        import tempfile, shutil, os
+        current = input_path
+        tmp_files = []
+        try:
+            for i, eff in enumerate(effects):
+                is_last = (i == len(effects) - 1)
+                dest = output_path if is_last else tempfile.mktemp(suffix=".mp4", prefix="fx_")
+                if not is_last:
+                    tmp_files.append(dest)
+                self.apply_effect_to_file(current, dest, eff.get("id", ""), eff.get("params", {}))
+                current = dest
+            return output_path
+        finally:
+            for f in tmp_files:
+                try:
+                    os.remove(f)
+                except Exception:
+                    pass
+
+
+# Module-level instance
+moviepy_effect_processor = MoviePyEffectProcessor()
+
