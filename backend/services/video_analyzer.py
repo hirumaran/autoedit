@@ -1,48 +1,54 @@
+from __future__ import annotations
+
 import logging
 import os
 import torch
 
-from model_manager import ModelManager as _ModelManager
-
 logger = logging.getLogger(__name__)
 
-# Lazy import — model only loads when first video is processed
-_florence_loaded = False
-_florence_processor = None
-_florence_model     = None
+# ── Module-level lazy state ───────────────────────────────────────────────────
+_load_attempted: bool = False
+_processor = None
+_model = None
 
 
-def _get_florence(device: str):
+def _lazy_load_florence(device: str):
     """
-    Lazy loader: returns (processor, model), downloading on first call only.
-    Thread-safe for single-worker Uvicorn (default). Add a Lock if using workers>1.
+    Load Florence-2 exactly once (on first analyze() call, NOT at startup).
+    Thread-safe enough for single-process uvicorn with --workers 1.
     """
-    global _florence_loaded, _florence_processor, _florence_model
+    global _load_attempted, _processor, _model
+    if _load_attempted:
+        return _processor, _model
 
-    if _florence_loaded:
-        return _florence_processor, _florence_model
-
+    _load_attempted = True  # prevent retry storms
     try:
-        from backend.utils.model_downloader import load_florence_model
-        _florence_processor, _florence_model = load_florence_model(device=device)
-        _florence_loaded = True
-    except Exception as exc:
-        logger.error(
-            f"❌ Florence-2 unavailable: {exc}\n"
-            "   Run `python -m backend.setup_models` to pre-download the model."
-        )
-        _florence_loaded = True   # prevent retry on every request
-        _florence_processor = None
-        _florence_model     = None
+        from backend.utils.model_manager import load_florence_model
 
-    return _florence_processor, _florence_model
+        _processor, _model = load_florence_model(device=device)
+    except RuntimeError as exc:
+        # model_manager already printed detailed instructions
+        logger.warning(f"⚠️  Florence-2 unavailable: {exc}")
+        logger.warning("   Video analysis features disabled. See instructions above.")
+        _processor = None
+        _model = None
+    except Exception as exc:
+        logger.error(f"❌ Unexpected error loading Florence-2: {exc}", exc_info=True)
+        _processor = None
+        _model = None
+
+    return _processor, _model
 
 
 class VideoAnalyzer:
-    """Video analysis service using Florence-2 (lazy-loaded)."""
+    """
+    Video analysis service.
+
+    Florence-2 is loaded lazily on the FIRST call to any analysis method,
+    not at server startup. The server boots instantly even with no internet.
+    """
 
     def __init__(self):
-        # Detect device once at init — do NOT load model here
         if torch.backends.mps.is_available():
             self.device = "mps"
         elif torch.cuda.is_available():
@@ -50,15 +56,80 @@ class VideoAnalyzer:
         else:
             self.device = "cpu"
 
-        logger.info(f"🔧 Video analyzer initialized (device: {self.device})")
-        # Model loads lazily on first analyze() call — server starts instantly
+        logger.info(f"🔧 VideoAnalyzer ready (device={self.device}, model=lazy)")
+
+    # ── Properties ────────────────────────────────────────────────────────────
 
     @property
     def processor(self):
-        return _get_florence(self.device)[0]
+        return _lazy_load_florence(self.device)[0]
 
     @property
     def model(self):
-        return _get_florence(self.device)[1]
+        return _lazy_load_florence(self.device)[1]
 
-    # ...existing code (analyze, detect_objects, etc.) — unchanged...
+    @property
+    def florence_ready(self) -> bool:
+        """True only after successful model load."""
+        return self.model is not None
+
+    # ── Public API ─────────────────────────────────────────────────────────────
+
+    def analyze_frame(self, image, task: str = "<CAPTION>") -> dict:
+        """
+        Run Florence-2 on a single PIL image.
+        Returns {} with a warning if model unavailable.
+        """
+        if not self.florence_ready:
+            logger.debug("analyze_frame called but Florence-2 not loaded — skipping")
+            return {"error": "Florence-2 model not available", "result": None}
+
+        try:
+            inputs = self.processor(
+                text=task,
+                images=image,
+                return_tensors="pt",
+            ).to(self.device)
+
+            with torch.no_grad():
+                generated_ids = self.model.generate(
+                    input_ids=inputs["input_ids"],
+                    pixel_values=inputs["pixel_values"],
+                    max_new_tokens=1024,
+                    num_beams=3,
+                )
+
+            result = self.processor.batch_decode(
+                generated_ids, skip_special_tokens=False
+            )[0]
+            parsed = self.processor.post_process_generation(
+                result,
+                task=task,
+                image_size=(image.width, image.height),
+            )
+            return {"result": parsed, "error": None}
+
+        except Exception as exc:
+            logger.error(f"analyze_frame error: {exc}", exc_info=True)
+            return {"error": str(exc), "result": None}
+
+    def caption_frame(self, image) -> str:
+        """Return a plain-text caption or empty string."""
+        out = self.analyze_frame(image, task="<CAPTION>")
+        if out["error"] or out["result"] is None:
+            return ""
+        cap = out["result"].get("<CAPTION>", "")
+        return cap.strip() if isinstance(cap, str) else ""
+
+    def detect_objects(self, image) -> list:
+        """Return list of detected object dicts or [] if unavailable."""
+        out = self.analyze_frame(image, task="<OD>")
+        if out["error"] or out["result"] is None:
+            return []
+        od = out["result"].get("<OD>", {})
+        bboxes = od.get("bboxes", [])
+        labels = od.get("labels", [])
+        return [
+            {"label": lbl, "bbox": box}
+            for lbl, box in zip(labels, bboxes)
+        ]

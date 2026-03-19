@@ -1,59 +1,130 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Always run from repo root even if script invoked elsewhere
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BACKEND_DIR="$PROJECT_ROOT/backend"
-VENV_DIR="$PROJECT_ROOT/.venv"
-PYTHON_BIN="${PYTHON:-python3}"
-PORT="${PORT:-8000}"
-SKIP_PIP="${SKIP_PIP:-0}"
+# ── Paths ─────────────────────────────────────────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VENV_DIR="$SCRIPT_DIR/.venv"
+BACKEND_DIR="$SCRIPT_DIR/backend"
 
-# ── Activate / create venv ────────────────────────────────────────────────────
-if [ ! -d "$VENV_DIR" ]; then
-  echo "[setup] Creating virtual environment..."
-  "$PYTHON_BIN" -m venv "$VENV_DIR"
-fi
-source "$VENV_DIR/bin/activate"
+# ── Hugging Face & macOS env vars (set BEFORE any Python) ────────────────────
+export HF_ENDPOINT="${HF_ENDPOINT:-https://hf-mirror.com}"
+export HF_HUB_DISABLE_TELEMETRY=1
+export HF_HUB_DISABLE_PROGRESS_BARS=0
+export HF_TRANSFER_ENABLE=1
+# Set to 1 to force offline mode (no network attempts at all)
+export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-0}"
 
-# ── Install deps ──────────────────────────────────────────────────────────────
-if [ "$SKIP_PIP" != "1" ]; then
-  pip install --disable-pip-version-check -q -r "$BACKEND_DIR/requirements.txt"
-fi
+# Florence-2 model — override with your local path if downloaded manually
+export FLORENCE_MODEL_ID="${FLORENCE_MODEL_ID:-microsoft/Florence-2-base}"
+export FLORENCE_LOCAL_PATH="${FLORENCE_LOCAL_PATH:-}"
 
-# ── Fix macOS Python SSL certificates (one-liner) ─────────────────────────────
-# This runs the official macOS Python certificate installer if available.
-SSL_INSTALLER="$(dirname "$(which python3)")/Install Certificates.command"
-if [ -f "$SSL_INSTALLER" ]; then
-  bash "$SSL_INSTALLER" > /dev/null 2>&1 || true
-fi
-# Always set certifi as fallback SSL bundle
-CERTIFI_BUNDLE="$("$VENV_DIR/bin/python" -c 'import certifi; print(certifi.where())' 2>/dev/null || echo "")"
-if [ -n "$CERTIFI_BUNDLE" ]; then
-  export SSL_CERT_FILE="$CERTIFI_BUNDLE"
-  export REQUESTS_CA_BUNDLE="$CERTIFI_BUNDLE"
-fi
+# Suppress macOS ObjC fork-safety warnings
+export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
 
-# ── Handle special commands ───────────────────────────────────────────────────
-if [ "${1:-}" = "setup-models" ]; then
-  echo "📥 Pre-downloading Florence-2 model (~1.5 GB)..."
-  cd "$BACKEND_DIR"
-  python -m backend.setup_models
-  echo "✅ Model download complete. Run './run.sh' to start the app."
-  exit 0
-fi
+# Fix macOS SSL to use certifi bundle
+export SSL_CERT_FILE="$VENV_DIR/lib/python3.11/site-packages/certifi/cacert.pem"
+export REQUESTS_CA_BUNDLE="$SSL_CERT_FILE"
 
-# ── Increase HF timeout globally ──────────────────────────────────────────────
-export HF_HUB_TIMEOUT=120
-export HF_HUB_DOWNLOAD_TIMEOUT=120
-# Uncomment to use mirror if huggingface.co is blocked:
-# export HF_ENDPOINT=https://hf-mirror.com
-# Uncomment to force offline (no download attempts):
-# export FLORENCE_OFFLINE=true
+# Python path so 'import backend' works everywhere
+export PYTHONPATH="$SCRIPT_DIR:${PYTHONPATH:-}"
 
-# ── Start server ──────────────────────────────────────────────────────────────
-cd "$BACKEND_DIR"
-exec python -m uvicorn main:app \
-  --host 0.0.0.0 \
-  --port "$PORT" \
-  --log-level info
+# ── Helpers ───────────────────────────────────────────────────────────────────
+log()  { echo "▶  $*"; }
+ok()   { echo "✅ $*"; }
+warn() { echo "⚠️  $*"; }
+err()  { echo "❌ $*" >&2; exit 1; }
+
+activate_venv() {
+    if [ ! -f "$VENV_DIR/bin/activate" ]; then
+        err "Virtual environment not found at $VENV_DIR. Run: python3 -m venv $VENV_DIR"
+    fi
+    # shellcheck disable=SC1091
+    source "$VENV_DIR/bin/activate"
+    ok "venv activated: $VIRTUAL_ENV"
+}
+
+check_ssl_cert() {
+    local cert_path
+    cert_path="$(python - <<'PYEOF'
+import ssl, certifi, os
+p = certifi.where()
+print(p if os.path.exists(p) else "")
+PYEOF
+)"
+    if [ -n "$cert_path" ]; then
+        export SSL_CERT_FILE="$cert_path"
+        export REQUESTS_CA_BUNDLE="$cert_path"
+        ok "SSL cert: $cert_path"
+    else
+        warn "certifi cert not found — SSL may fail. Run: pip install -U certifi"
+    fi
+}
+
+# ── Subcommands ───────────────────────────────────────────────────────────────
+cmd_install() {
+    activate_venv
+    log "Installing/upgrading dependencies..."
+    pip install --upgrade pip setuptools wheel
+    pip install -r "$SCRIPT_DIR/requirements.txt"
+    ok "Dependencies installed."
+}
+
+cmd_setup_models() {
+    activate_venv
+    check_ssl_cert
+    log "Setting up Florence-2 model (ID: $FLORENCE_MODEL_ID)..."
+    python - <<'PYEOF'
+import sys, os
+sys.path.insert(0, os.environ["PYTHONPATH"].split(":")[0])
+from backend.utils.model_manager import ensure_florence_model
+ensure_florence_model()
+PYEOF
+    ok "Model setup complete."
+}
+
+cmd_start() {
+    activate_venv
+    check_ssl_cert
+    log "Starting AI Video Editor backend..."
+    log "  PYTHONPATH : $PYTHONPATH"
+    log "  HF_ENDPOINT: $HF_ENDPOINT"
+    log "  Offline    : $HF_HUB_OFFLINE"
+
+    exec uvicorn backend.main:app \
+        --host 0.0.0.0 \
+        --port 8000 \
+        --reload \
+        --reload-dir "$BACKEND_DIR" \
+        --log-level info
+}
+
+cmd_dev() {
+    # Start frontend + backend concurrently (assumes npm concurrently)
+    activate_venv
+    check_ssl_cert
+    log "Starting full dev stack..."
+    # backend in background
+    (cmd_start) &
+    BACKEND_PID=$!
+    # frontend
+    cd "$SCRIPT_DIR" && npm run dev:frontend 2>/dev/null || true
+    wait "$BACKEND_PID"
+}
+
+# ── Dispatch ──────────────────────────────────────────────────────────────────
+COMMAND="${1:-start}"
+case "$COMMAND" in
+    install)       cmd_install ;;
+    setup-models)  cmd_setup_models ;;
+    start)         cmd_start ;;
+    dev)           cmd_dev ;;
+    *)
+        echo "Usage: $0 {install|setup-models|start|dev}"
+        echo ""
+        echo "  install       — install Python dependencies"
+        echo "  setup-models  — download/verify Florence-2 model"
+        echo "  start         — start FastAPI server"
+        echo "  dev           — start full stack (frontend + backend)"
+        exit 1
+        ;;
+esac

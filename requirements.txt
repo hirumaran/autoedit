@@ -1,0 +1,41 @@
+# ── Core API ──────────────────────────────────────────────────────────────────
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+python-multipart==0.0.9
+websockets==12.0
+aiofiles==23.2.1
+
+# ── ML / Vision ───────────────────────────────────────────────────────────────
+torch==2.3.0
+torchvision==0.18.0
+transformers==4.41.2
+timm==0.9.16
+einops==0.7.0
+
+# ── Image / Video ─────────────────────────────────────────────────────────────
+# imageio 2.34+ supports Pillow 10.x
+Pillow==10.3.0
+imageio==2.34.1
+imageio-ffmpeg==0.5.1
+moviepy==1.0.3
+opencv-python-headless==4.9.0.80
+
+# scikit-image needs pillow >=9.0.1, <11 — 10.3.0 satisfies both
+scikit-image==0.22.0
+
+# ── Hugging Face ecosystem ────────────────────────────────────────────────────
+huggingface-hub==0.23.2
+safetensors==0.4.3
+tokenizers==0.19.1
+hf_transfer==0.1.6
+accelerate==0.30.0
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+numpy==1.26.4
+scipy==1.13.0
+rich==13.7.1
+certifi==2024.2.2
+requests==2.31.0
+tqdm==4.66.4
+pydantic==2.7.1
+python-dotenv==1.0.1
