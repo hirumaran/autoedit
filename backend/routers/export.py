@@ -67,7 +67,7 @@ def _output_path(ext: str = ".mp4") -> str:
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 
-@router.get("/", summary="Export endpoint status")
+@router.get("", summary="Export endpoint status")
 async def export_index():
     return {"status": "ok", "router": "export", "endpoints": ["render", "viral"]}
 

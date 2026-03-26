@@ -148,6 +148,23 @@ except ImportError as exc:
     logger.warning("Some routers not loaded: %s", exc)
 
 
+# ── WebSocket progress endpoint ───────────────────────────────────────────────
+from fastapi import WebSocket, WebSocketDisconnect
+
+
+@app.websocket("/ws/progress")
+async def websocket_progress(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        while True:
+            data = await websocket.receive_text()
+            await websocket.send_json({"status": "ok", "echo": data})
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        pass
+
+
 # ── Static frontend (mount LAST so API routes take priority) ──────────────────
 if FRONTEND_DIST.is_dir():
     # Serve index.html for all unknown paths (SPA client-side routing)

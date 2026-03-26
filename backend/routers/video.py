@@ -64,7 +64,7 @@ def _resolve_video_path(video_path: str) -> str:
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 
-@router.get("/", summary="Video endpoint status")
+@router.get("", summary="Video endpoint status")
 async def video_index():
     return {
         "status": "ok",

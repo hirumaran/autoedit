@@ -28,7 +28,7 @@ ALLOWED_EXTENSIONS = {".mp4", ".mov", ".avi", ".mkv", ".webm", ".flv", ".wmv"}
 MAX_FILE_SIZE = 500 * 1024 * 1024  # 500 MB
 
 
-@router.post("/", summary="Upload a video file")
+@router.post("", summary="Upload a video file")
 async def upload_video(file: UploadFile = File(...)):
     """
     Upload a video file for processing.

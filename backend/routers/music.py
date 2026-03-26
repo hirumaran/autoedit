@@ -45,7 +45,7 @@ class MusicSelectRequest(BaseModel):
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 
-@router.get("/", summary="List available music tracks")
+@router.get("", summary="List available music tracks")
 async def list_music():
     """List all cached/downloaded music tracks."""
     try:
