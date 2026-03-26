@@ -1,9 +1,8 @@
-
 import os
 import logging
 import json
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 import subprocess
 
 # MoviePy audio engine — primary mixing path with FFmpeg fallback inside
@@ -14,7 +13,6 @@ except ImportError:
     _AUDIO_ENGINE_AVAILABLE = False
 
 from services.music_agent import MusicAgent
-from services.trend_fetcher import TrendFetcher
 from video_processor import VideoProcessor
 
 logger = logging.getLogger(__name__)
@@ -87,30 +85,33 @@ class ViralEditor:
     def apply_viral_edit(
         self, 
         video_path: str, 
-        audio_track_id: str, 
+        audio_track_id: Optional[str] = None, 
         transcript_segments: List[Dict] = None,
         volume_level: float = 0.3,
-        is_preview: bool = False
+        is_preview: bool = False,
+        music_id: Optional[str] = None,
+        effects: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict:
         """
         Main entry point to apply viral audio.
         If is_preview is True, returns a low-res short snippet.
-        
-        Uses MoviePyAudioEngine (with speech ducking) as primary path;
-        falls back to _render_with_ffmpeg for maximum compatibility.
+
+        Accepts both `audio_track_id` and frontend-style `music_id`.
+        `effects` is accepted for API compatibility even if not applied here.
         """
         try:
-            # 1. Prepare Audio
-            audio_path = self.music_agent.download_track(audio_track_id)
-            if not audio_path:
-                raise ValueError(f"Could not download audio: {audio_track_id}")
+            resolved_audio_track_id = audio_track_id or music_id
+            if not resolved_audio_track_id:
+                raise ValueError("Missing audio track id. Provide `audio_track_id` or `music_id`.")
 
-            # 2. Prepare Output Path
+            audio_path = self.music_agent.download_track(resolved_audio_track_id)
+            if not audio_path:
+                raise ValueError(f"Could not download audio: {resolved_audio_track_id}")
+
             suffix = "_preview.mp4" if is_preview else "_viral.mp4"
             filename = Path(video_path).stem + suffix
             output_path = self.output_dir / filename
 
-            # 3. Apply Edit — MoviePy primary, FFmpeg fallback
             self._render_with_moviepy(
                 str(video_path),
                 str(audio_path),
@@ -121,9 +122,11 @@ class ViralEditor:
             )
             
             return {
-                "success": True, 
+                "success": True,
                 "output_path": str(output_path),
-                "is_preview": is_preview
+                "is_preview": is_preview,
+                "audio_track_id": resolved_audio_track_id,
+                "effects": effects or [],
             }
 
         except Exception as e:

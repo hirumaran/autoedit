@@ -16,24 +16,27 @@ from fastapi.staticfiles import StaticFiles
 
 # ── Logging setup ─────────────────────────────────────────────────────────────
 _handler = logging.StreamHandler()
-_handler.setFormatter(logging.Formatter(
-    fmt="%(asctime)s [%(levelname)s] %(name)s \u2014 %(message)s",
-    datefmt="%H:%M:%S",
-    # Do NOT pass style= here; default % style is correct and avoids KeyError
-))
+_handler.setFormatter(
+    logging.Formatter(
+        fmt="%(asctime)s [%(levelname)s] %(name)s \u2014 %(message)s",
+        datefmt="%H:%M:%S",
+        # Do NOT pass style= here; default % style is correct and avoids KeyError
+    )
+)
 logging.root.setLevel(logging.INFO)
 logging.root.handlers = [_handler]
 logger = logging.getLogger(__name__)
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
-ROOT_DIR = Path(__file__).resolve().parent.parent          # project root
-FRONTEND_DIST = ROOT_DIR / "frontend" / "dist"             # React build output
+ROOT_DIR = Path(__file__).resolve().parent.parent  # project root
+FRONTEND_DIST = ROOT_DIR / "frontend" / "dist"  # React build output
 
 
 # ── Optional dependency checks ────────────────────────────────────────────────
 def _check_moviepy() -> str:
     try:
         import moviepy.editor  # noqa: F401
+
         return "✅ MoviePy available"
     except ImportError:
         return "⚠️  MoviePy not found — using FFmpeg subprocess fallback"
@@ -77,7 +80,11 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:8000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -105,27 +112,38 @@ async def health():
 @app.get("/api", tags=["system"], summary="API welcome")
 async def api_welcome():
     """Friendly API index — links to docs and key endpoints."""
-    return JSONResponse({
-        "app": "AI Video Editor",
-        "version": "1.0.0",
-        "status": "running",
-        "docs": "http://localhost:8000/docs",
-        "health": "http://localhost:8000/health",
-        "endpoints": {
-            "video":    "/api/video",
-            "analysis": "/api/analysis",
-            "export":   "/api/export",
-        },
-        "tip": "Open /docs for the interactive API explorer.",
-    })
+    return JSONResponse(
+        {
+            "app": "AI Video Editor",
+            "version": "1.0.0",
+            "status": "running",
+            "docs": "http://localhost:8000/docs",
+            "health": "http://localhost:8000/health",
+            "endpoints": {
+                "upload": "/api/upload",
+                "video": "/api/video",
+                "edit": "/api/edit",
+                "analysis": "/api/analysis",
+                "export": "/api/export",
+                "music": "/api/music",
+                "download": "/api/download",
+            },
+            "tip": "Open /docs for the interactive API explorer.",
+        }
+    )
 
 
 # ── Routers ───────────────────────────────────────────────────────────────────
 try:
-    from backend.routers import analysis, export, video  # noqa: E402
-    app.include_router(video.router,    prefix="/api/video",    tags=["video"])
+    from backend.routers import analysis, export, video, upload, edit, music, download  # noqa: E402
+
+    app.include_router(upload.router, prefix="/api/upload", tags=["upload"])
+    app.include_router(video.router, prefix="/api/video", tags=["video"])
+    app.include_router(edit.router, prefix="/api/edit", tags=["edit"])
     app.include_router(analysis.router, prefix="/api/analysis", tags=["analysis"])
-    app.include_router(export.router,   prefix="/api/export",   tags=["export"])
+    app.include_router(export.router, prefix="/api/export", tags=["export"])
+    app.include_router(music.router, prefix="/api/music", tags=["music"])
+    app.include_router(download.router, prefix="/api/download", tags=["download"])
 except ImportError as exc:
     logger.warning("Some routers not loaded: %s", exc)
 
@@ -157,14 +175,16 @@ else:
     # No React build yet — serve the JSON welcome at /
     @app.get("/", tags=["system"], summary="Welcome")
     async def root():
-        return JSONResponse({
-            "app": "AI Video Editor API",
-            "message": "Backend is running. No React build found yet.",
-            "docs": "http://localhost:8000/docs",
-            "health": "http://localhost:8000/health",
-            "api": "http://localhost:8000/api",
-            "build_frontend": "cd frontend && npm install && npm run build",
-        })
+        return JSONResponse(
+            {
+                "app": "AI Video Editor API",
+                "message": "Backend is running. No React build found yet.",
+                "docs": "http://localhost:8000/docs",
+                "health": "http://localhost:8000/health",
+                "api": "http://localhost:8000/api",
+                "build_frontend": "cd frontend && npm install && npm run build",
+            }
+        )
 
 
 # ── Dev entry point ───────────────────────────────────────────────────────────
