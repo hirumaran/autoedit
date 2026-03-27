@@ -20,50 +20,50 @@ except ImportError:
 SUBTITLE_STYLE_MAP = {
     "meme": {
         "FontName": "Impact",
-        "FontSize": "48",
+        "FontSize": "56",
         "PrimaryColour": "&H00FFFFFF",
-        "OutlineColour": "&H000000",
+        "OutlineColour": "&H00000000",
         "BorderStyle": "3",
         "Outline": "4",
         "Shadow": "0",
         "Alignment": "2",
-        "MarginV": "80",
+        "MarginV": "60",
         "Bold": "-1",
     },
     "minimal": {
-        "FontName": "Helvetica Neue",
-        "FontSize": "38",
+        "FontName": "Arial",
+        "FontSize": "42",
         "PrimaryColour": "&H00FFFFFF",
-        "OutlineColour": "&H66000000",
-        "BorderStyle": "4",
-        "Outline": "1",
-        "Shadow": "0",
+        "OutlineColour": "&H00000000",
+        "BorderStyle": "3",
+        "Outline": "2",
+        "Shadow": "1",
         "Alignment": "2",
-        "MarginV": "120",
-        "Bold": "0",
+        "MarginV": "50",
+        "Bold": "-1",
     },
     "bold": {
-        "FontName": "Gotham Bold",
-        "FontSize": "44",
-        "PrimaryColour": "&H0000FFFF",
+        "FontName": "Arial",
+        "FontSize": "52",
+        "PrimaryColour": "&H00FFFFFF",
         "OutlineColour": "&H00000000",
-        "BorderStyle": "4",
-        "Outline": "2",
-        "Shadow": "0",
+        "BorderStyle": "3",
+        "Outline": "3",
+        "Shadow": "1",
         "Alignment": "2",
-        "MarginV": "90",
+        "MarginV": "50",
         "Bold": "-1",
     },
     "elegant": {
         "FontName": "Georgia",
-        "FontSize": "42",
-        "PrimaryColour": "&H00F5E6CC",
+        "FontSize": "46",
+        "PrimaryColour": "&H00FFFFFF",
         "OutlineColour": "&H00000000",
-        "BorderStyle": "4",
-        "Outline": "1",
+        "BorderStyle": "3",
+        "Outline": "2",
         "Shadow": "2",
         "Alignment": "2",
-        "MarginV": "110",
+        "MarginV": "60",
         "Bold": "0",
     },
     "retro": {
@@ -347,8 +347,11 @@ class VideoProcessor:
             "fast",
             output_path,
         ]
-        print(f"🎬 Transform (fit_blur): ffmpeg -filter_complex '{filter_complex}'")
-        subprocess.run(cmd, check=True, capture_output=True)
+        print(f"🎬 Transform (fit_blur): {target_w}x{target_h}")
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            print(f"❌ Transform FFmpeg error: {result.stderr[-500:]}")
+            raise RuntimeError(f"FFmpeg transform failed: {result.stderr[-200:]}")
         print(f"✅ Transformed video → {output_path}")
         return output_path
 
@@ -400,50 +403,63 @@ class VideoProcessor:
         video_width: int = 1080,
         video_height: int = 1920,
     ):
-        """Burn subtitles into video.
-
-        When *subtitle_data* (list of dicts with text/start/end) is provided,
-        generates an SRT file and uses FFmpeg to burn it in.
-        """
+        """Burn subtitles into video using FFmpeg."""
 
         # --- If we have subtitle data but no file, generate an SRT ---
         if subtitle_data and not subtitle_file:
             subtitle_file = self._generate_srt(subtitle_data)
 
-        # --- MoviePy path (requires subtitle_data with timestamps) ---
-        if _MOVIEPY_ENGINE_AVAILABLE and subtitle_data:
-            try:
-                with MoviePyEngine(self.video_path) as engine:
-                    return engine.add_subtitles(
-                        subtitle_data,
-                        output_path,
-                        style_preset=style_preset,
-                        video_width=video_width,
-                        video_height=video_height,
-                    )
-            except Exception as e:
-                print(f"⚠️ MoviePy subtitle burn failed ({e}); FFmpeg fallback")
+        if not subtitle_file or not Path(subtitle_file).exists():
+            print(f"❌ No subtitle file available")
+            import shutil
 
-        # --- FFmpeg ASS/SRT fallback ---
+            shutil.copy(self.video_path, output_path)
+            return output_path
+
+        # --- FFmpeg subtitle burn ---
         try:
-            esc_file = subtitle_file.replace("\\", "/").replace(":", "\\\\:")
+            # Use absolute path and escape for FFmpeg subtitles filter
+            srt_path = str(Path(subtitle_file).resolve())
+            # Escape special characters for FFmpeg filter
+            srt_escaped = srt_path.replace("\\", "/").replace(":", "\\:")
+
             style = style or SUBTITLE_STYLE_MAP.get(
-                "sleek", SUBTITLE_STYLE_MAP.get("meme")
+                style_preset, SUBTITLE_STYLE_MAP.get("minimal")
             )
             style_parts = [f"{key}={value}" for key, value in style.items()]
             force_style = ",".join(style_parts)
+
+            vf = f"subtitles='{srt_escaped}':force_style='{force_style}'"
+
             cmd = [
                 "ffmpeg",
                 "-y",
                 "-i",
                 self.video_path,
                 "-vf",
-                f"subtitles={esc_file}:force_style='{force_style}'",
+                vf,
                 "-c:a",
                 "copy",
                 output_path,
             ]
-            subprocess.run(cmd, check=True, capture_output=True)
+            print(f"💬 Subtitle FFmpeg: {vf}")
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                print(f"❌ FFmpeg subtitle error: {result.stderr[-500:]}")
+                # Fallback: try without escaping
+                vf2 = f"subtitles={srt_path}:force_style='{force_style}'"
+                cmd2 = [
+                    "ffmpeg",
+                    "-y",
+                    "-i",
+                    self.video_path,
+                    "-vf",
+                    vf2,
+                    "-c:a",
+                    "copy",
+                    output_path,
+                ]
+                subprocess.run(cmd2, check=True, capture_output=True)
             print(f"💬 Added subtitles from {subtitle_file}")
             return output_path
         except Exception as e:
