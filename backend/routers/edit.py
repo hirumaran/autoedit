@@ -353,6 +353,38 @@ async def render_video(req: RenderRequest):
             )
             if subtitle_segments:
                 try:
+                    # Adjust subtitle timestamps for cuts
+                    if req.custom_segments and len(req.custom_segments) > 0:
+                        cuts = sorted(
+                            req.custom_segments, key=lambda s: s.get("start", 0)
+                        )
+                        adjusted = []
+                        for seg in subtitle_segments:
+                            seg_start = seg.get("start", 0)
+                            seg_end = seg.get("end", 0)
+                            # Calculate total cut duration before this segment
+                            offset = 0.0
+                            for cut in cuts:
+                                cut_start = float(cut.get("start", 0))
+                                cut_end = float(cut.get("end", 0))
+                                if cut_end <= seg_start:
+                                    # Entire cut is before this segment
+                                    offset += cut_end - cut_start
+                                elif cut_start < seg_end:
+                                    # Cut overlaps this segment — skip subtitle
+                                    offset = -1
+                                    break
+                            if offset >= 0:
+                                new_seg = dict(seg)
+                                new_seg["start"] = max(0, seg_start - offset)
+                                new_seg["end"] = max(0, seg_end - offset)
+                                if new_seg["end"] > new_seg["start"]:
+                                    adjusted.append(new_seg)
+                        subtitle_segments = adjusted
+                        logger.info(
+                            f"📝 Adjusted {len(subtitle_segments)} subtitle segments for cuts"
+                        )
+
                     sub_output = _output_path()
                     vp = VideoProcessor(current_path)
                     vp.add_subtitles(

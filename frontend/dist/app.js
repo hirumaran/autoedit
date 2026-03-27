@@ -853,7 +853,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Wait, render_video_pipeline: "if valid_custom_segments... else ... if not applied_ranges: keep full"
             // So if we send empty list, it keeps full video. Correct.
 
-            const finalSegments = removeRanges.length > 0 ? keepSegments : [];
+            const finalSegments = removeRanges;
 
             // Gather params
             const transcript = reviewTranscript.value;
