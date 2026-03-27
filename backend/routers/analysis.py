@@ -49,9 +49,15 @@ def _resolve_video_path(video_path: str) -> str:
     p = Path(video_path)
     if p.is_absolute() and p.exists():
         return str(p)
-    candidate = UPLOADS_DIR / Path(video_path).name
+    # Try in uploads dir (exact match)
+    candidate = UPLOADS_DIR / p.name
     if candidate.exists():
         return str(candidate)
+    # Try with common video extensions (video_id without extension)
+    for ext in (".mp4", ".mov", ".avi", ".mkv", ".webm"):
+        candidate = UPLOADS_DIR / f"{p.stem}{ext}"
+        if candidate.exists():
+            return str(candidate)
     raise FileNotFoundError(f"Video not found: {video_path}")
 
 
@@ -156,11 +162,17 @@ async def get_analysis(video_id: str):
             )
 
         job = json.loads(row[0])
+
+        # Return in the format the frontend expects
         return JSONResponse(
             {
                 "video_id": video_id,
-                "analysis": job.get("analysis", {}),
                 "status": job.get("status", "unknown"),
+                "ai_analysis": job.get("ai_analysis", {}),
+                "transcript": job.get("transcript", ""),
+                "segments": job.get("segments", []),
+                "phase_one_metadata": job.get("phase_one_metadata", {}),
+                "duration": job.get("duration", 0),
             }
         )
 

@@ -12,6 +12,7 @@ except Exception:  # pragma: no cover
 # MoviePy engine — provides clean Python API over FFmpeg
 try:
     from editing_engine import MoviePyEngine, MoviePyAudioEngine  # type: ignore
+
     _MOVIEPY_ENGINE_AVAILABLE = True
 except ImportError:
     _MOVIEPY_ENGINE_AVAILABLE = False
@@ -27,7 +28,7 @@ SUBTITLE_STYLE_MAP = {
         "Shadow": "0",
         "Alignment": "2",
         "MarginV": "80",
-        "Bold": "-1"
+        "Bold": "-1",
     },
     "minimal": {
         "FontName": "Helvetica Neue",
@@ -39,7 +40,7 @@ SUBTITLE_STYLE_MAP = {
         "Shadow": "0",
         "Alignment": "2",
         "MarginV": "120",
-        "Bold": "0"
+        "Bold": "0",
     },
     "bold": {
         "FontName": "Gotham Bold",
@@ -51,7 +52,7 @@ SUBTITLE_STYLE_MAP = {
         "Shadow": "0",
         "Alignment": "2",
         "MarginV": "90",
-        "Bold": "-1"
+        "Bold": "-1",
     },
     "elegant": {
         "FontName": "Georgia",
@@ -63,7 +64,7 @@ SUBTITLE_STYLE_MAP = {
         "Shadow": "2",
         "Alignment": "2",
         "MarginV": "110",
-        "Bold": "0"
+        "Bold": "0",
     },
     "retro": {
         "FontName": "Futura",
@@ -75,7 +76,7 @@ SUBTITLE_STYLE_MAP = {
         "Shadow": "0",
         "Alignment": "2",
         "MarginV": "85",
-        "Bold": "-1"
+        "Bold": "-1",
     },
     "sleek": {
         "FontName": "SF Pro Display",
@@ -87,7 +88,7 @@ SUBTITLE_STYLE_MAP = {
         "Shadow": "0",
         "Alignment": "2",
         "MarginV": "130",
-        "Bold": "0"
+        "Bold": "0",
     },
     "neon": {
         "FontName": "Courier New",
@@ -99,8 +100,8 @@ SUBTITLE_STYLE_MAP = {
         "Shadow": "0",
         "Alignment": "2",
         "MarginV": "120",
-        "Bold": "-1"
-    }
+        "Bold": "-1",
+    },
 }
 
 
@@ -109,7 +110,7 @@ class VideoProcessor:
         self.video_path = video_path
         try:
             self.probe = ffmpeg.probe(video_path)
-            self.duration = float(self.probe['format']['duration'])
+            self.duration = float(self.probe["format"]["duration"])
         except Exception as e:
             print(f"⚠️ Warning: Could not probe video: {e}")
             self.duration = 0
@@ -118,18 +119,16 @@ class VideoProcessor:
         """Extract video metadata"""
         try:
             video_stream = next(
-                (s for s in self.probe['streams'] if s['codec_type'] == 'video'),
-                None
+                (s for s in self.probe["streams"] if s["codec_type"] == "video"), None
             )
             audio_stream = next(
-                (s for s in self.probe['streams'] if s['codec_type'] == 'audio'),
-                None
+                (s for s in self.probe["streams"] if s["codec_type"] == "audio"), None
             )
             return {
                 "duration": self.duration,
-                "width": int(video_stream.get('width', 0)),
-                "height": int(video_stream.get('height', 0)),
-                "has_audio": audio_stream is not None
+                "width": int(video_stream.get("width", 0)),
+                "height": int(video_stream.get("height", 0)),
+                "has_audio": audio_stream is not None,
             }
         except Exception as e:
             return {"error": str(e)}
@@ -138,8 +137,12 @@ class VideoProcessor:
         """Return source video width/height if available."""
         try:
             stream = next(
-                (s for s in self.probe.get("streams", []) if s.get("codec_type") == "video"),
-                None
+                (
+                    s
+                    for s in self.probe.get("streams", [])
+                    if s.get("codec_type") == "video"
+                ),
+                None,
             )
             if not stream:
                 return 0, 0
@@ -147,7 +150,9 @@ class VideoProcessor:
         except Exception:
             return 0, 0
 
-    def _rotation_and_flip_filters(self, rotation: int, flip_horizontal: bool) -> List[str]:
+    def _rotation_and_flip_filters(
+        self, rotation: int, flip_horizontal: bool
+    ) -> List[str]:
         filters: List[str] = []
         if rotation == 90:
             filters.append("transpose=1")
@@ -160,9 +165,7 @@ class VideoProcessor:
         return filters
 
     def _compress_tracking_points(
-        self,
-        points: List[Tuple[float, int]],
-        max_points: int = 45
+        self, points: List[Tuple[float, int]], max_points: int = 45
     ) -> List[Tuple[float, int]]:
         if len(points) <= max_points:
             return points
@@ -176,9 +179,7 @@ class VideoProcessor:
         return reduced
 
     def _extract_head_tracking_points(
-        self,
-        crop_w: int,
-        sample_interval: float = 0.5
+        self, crop_w: int, sample_interval: float = 0.5
     ) -> List[Tuple[float, int]]:
         """
         Detect face/head centers over time and return (t, crop_x) keypoints.
@@ -227,7 +228,7 @@ class VideoProcessor:
                 gray,
                 scaleFactor=1.15,
                 minNeighbors=5,
-                minSize=(min_face_side, min_face_side)
+                minSize=(min_face_side, min_face_side),
             )
 
             target_x = int(round(smoothed_x))
@@ -237,7 +238,9 @@ class VideoProcessor:
                 target_x = int(round(center_x - (crop_w / 2.0)))
 
             target_x = max(0, min(target_x, max(src_w - crop_w, 0)))
-            smoothed_x = (smoothing_alpha * target_x) + ((1.0 - smoothing_alpha) * smoothed_x)
+            smoothed_x = (smoothing_alpha * target_x) + (
+                (1.0 - smoothing_alpha) * smoothed_x
+            )
             tracked_x = int(round(smoothed_x))
 
             if not points or abs(points[-1][1] - tracked_x) >= 6:
@@ -315,7 +318,7 @@ class VideoProcessor:
         output_path: str,
         target_w: int,
         target_h: int,
-        post_filters: Optional[List[str]] = None
+        post_filters: Optional[List[str]] = None,
     ) -> str:
         """Compose a blurred-fill background with centered foreground."""
         post_filters = post_filters or []
@@ -328,14 +331,21 @@ class VideoProcessor:
             f"[base]{post_chain}[outv]"
         )
         cmd = [
-            "ffmpeg", "-y",
-            "-i", self.video_path,
-            "-filter_complex", filter_complex,
-            "-map", "[outv]",
-            "-map", "0:a?",
-            "-c:a", "copy",
-            "-preset", "fast",
-            output_path
+            "ffmpeg",
+            "-y",
+            "-i",
+            self.video_path,
+            "-filter_complex",
+            filter_complex,
+            "-map",
+            "[outv]",
+            "-map",
+            "0:a?",
+            "-c:a",
+            "copy",
+            "-preset",
+            "fast",
+            output_path,
         ]
         print(f"🎬 Transform (fit_blur): ffmpeg -filter_complex '{filter_complex}'")
         subprocess.run(cmd, check=True, capture_output=True)
@@ -344,7 +354,7 @@ class VideoProcessor:
 
     def trim_video(self, start: float, end: float, output_path: str):
         """Cut video between start and end timestamps.
-        
+
         Tries MoviePy first for clean re-encoding; falls back to the original
         ffmpeg -c copy fast path if MoviePy is unavailable or fails.
         """
@@ -361,12 +371,17 @@ class VideoProcessor:
         # --- FFmpeg fallback (fast stream copy, no re-encode) ---
         try:
             cmd = [
-                'ffmpeg', '-y',
-                '-ss', str(start),
-                '-i', self.video_path,
-                '-t', str(end - start),
-                '-c', 'copy',
-                output_path
+                "ffmpeg",
+                "-y",
+                "-ss",
+                str(start),
+                "-i",
+                self.video_path,
+                "-t",
+                str(end - start),
+                "-c",
+                "copy",
+                output_path,
             ]
             subprocess.run(cmd, check=True, capture_output=True)
             print(f"✂️ FFmpeg trimmed: {start}s to {end}s")
@@ -388,10 +403,13 @@ class VideoProcessor:
         """Burn subtitles into video.
 
         When *subtitle_data* (list of dicts with text/start/end) is provided,
-        MoviePy TextClip compositing is used for cleaner, anti-aliased rendering.
-        When only *subtitle_file* (SRT/ASS path) is given, the original FFmpeg
-        ``subtitles=`` filter path is used as fallback.
+        generates an SRT file and uses FFmpeg to burn it in.
         """
+
+        # --- If we have subtitle data but no file, generate an SRT ---
+        if subtitle_data and not subtitle_file:
+            subtitle_file = self._generate_srt(subtitle_data)
+
         # --- MoviePy path (requires subtitle_data with timestamps) ---
         if _MOVIEPY_ENGINE_AVAILABLE and subtitle_data:
             try:
@@ -408,16 +426,22 @@ class VideoProcessor:
 
         # --- FFmpeg ASS/SRT fallback ---
         try:
-            esc_file = subtitle_file.replace('\\', '/').replace(':', '\\\\:')
-            style = style or SUBTITLE_STYLE_MAP.get("sleek")
+            esc_file = subtitle_file.replace("\\", "/").replace(":", "\\\\:")
+            style = style or SUBTITLE_STYLE_MAP.get(
+                "sleek", SUBTITLE_STYLE_MAP.get("meme")
+            )
             style_parts = [f"{key}={value}" for key, value in style.items()]
             force_style = ",".join(style_parts)
             cmd = [
-                'ffmpeg', '-y',
-                '-i', self.video_path,
-                '-vf', f"subtitles={esc_file}:force_style='{force_style}'",
-                '-c:a', 'copy',
-                output_path
+                "ffmpeg",
+                "-y",
+                "-i",
+                self.video_path,
+                "-vf",
+                f"subtitles={esc_file}:force_style='{force_style}'",
+                "-c:a",
+                "copy",
+                output_path,
             ]
             subprocess.run(cmd, check=True, capture_output=True)
             print(f"💬 Added subtitles from {subtitle_file}")
@@ -425,12 +449,38 @@ class VideoProcessor:
         except Exception as e:
             print(f"❌ Subtitle addition failed: {e}")
             import shutil
+
             shutil.copy(self.video_path, output_path)
             return output_path
 
+    def _generate_srt(self, subtitle_data: List[Dict]) -> str:
+        """Generate an SRT file from subtitle segment data."""
+        import tempfile
+
+        def format_time(seconds: float) -> str:
+            h = int(seconds // 3600)
+            m = int((seconds % 3600) // 60)
+            s = int(seconds % 60)
+            ms = int((seconds % 1) * 1000)
+            return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
+
+        srt_path = str(
+            Path(tempfile.gettempdir()) / f"subs_{Path(self.video_path).stem}.srt"
+        )
+        with open(srt_path, "w", encoding="utf-8") as f:
+            for i, seg in enumerate(subtitle_data, 1):
+                text = seg.get("text", "").strip()
+                if not text:
+                    continue
+                start = format_time(seg.get("start", 0))
+                end = format_time(seg.get("end", 0))
+                f.write(f"{i}\n{start} --> {end}\n{text}\n\n")
+        print(f"📝 Generated SRT: {srt_path}")
+        return srt_path
+
     def add_overlay(self, overlay_image: str, position: str, output_path: str):
         """Add logo/watermark overlay.
-        
+
         Tries MoviePy CompositeVideoClip; falls back to ffmpeg-python overlay.
         """
         # Pixel-offset positions for MoviePy (relative to frame edges)
@@ -446,6 +496,7 @@ class VideoProcessor:
         if _MOVIEPY_ENGINE_AVAILABLE:
             try:
                 from moviepy.editor import VideoFileClip, ImageClip, CompositeVideoClip  # type: ignore
+
                 base = VideoFileClip(self.video_path)
                 logo = ImageClip(overlay_image).set_duration(base.duration)
                 pos_key = moviepy_positions.get(position, (10, 10))
@@ -457,8 +508,12 @@ class VideoProcessor:
                     pos_val = pos_key
                 composed = CompositeVideoClip([base, logo.set_position(pos_val)])
                 composed.write_videofile(
-                    output_path, codec="libx264", audio_codec="aac",
-                    preset="fast", logger=None, threads=2,
+                    output_path,
+                    codec="libx264",
+                    audio_codec="aac",
+                    preset="fast",
+                    logger=None,
+                    threads=2,
                 )
                 base.close()
                 print(f"🖼️ MoviePy overlay ({position}) → {output_path}")
@@ -472,15 +527,14 @@ class VideoProcessor:
             "top-right": "W-w-10:10",
             "bottom-left": "10:H-h-10",
             "bottom-right": "W-w-10:H-h-10",
-            "center": "(W-w)/2:(H-h)/2"
+            "center": "(W-w)/2:(H-h)/2",
         }
         try:
             (
-                ffmpeg
-                .input(self.video_path)
+                ffmpeg.input(self.video_path)
                 .overlay(
                     ffmpeg.input(overlay_image),
-                    x=ffmpeg_positions.get(position, "10:10")
+                    x=ffmpeg_positions.get(position, "10:10"),
                 )
                 .output(output_path)
                 .overwrite_output()
@@ -504,7 +558,7 @@ class VideoProcessor:
         return self.transform_video(
             output_path,
             aspect_ratio=f"{target_w}:{target_h}",
-            resolution=f"{target_w}x{target_h}"
+            resolution=f"{target_w}x{target_h}",
         )
 
     def transform_video(
@@ -514,7 +568,7 @@ class VideoProcessor:
         resolution: str = None,
         rotation: int = 0,
         flip_horizontal: bool = False,
-        resize_mode: str = "fit"
+        resize_mode: str = "fit",
     ):
         """
         Apply resize, rotation, and flip in a single FFmpeg pass.
@@ -539,7 +593,9 @@ class VideoProcessor:
                 if len(res_parts) == 2:
                     tw, th = int(res_parts[0]), int(res_parts[1])
                     if resize_mode == "fit_blur":
-                        return self._transform_with_fit_blur(output_path, tw, th, post_filters)
+                        return self._transform_with_fit_blur(
+                            output_path, tw, th, post_filters
+                        )
 
                     if resize_mode == "smart_crop":
                         filters.append(self._build_smart_crop_filter(tw, th))
@@ -561,8 +617,12 @@ class VideoProcessor:
                         filters.append(f"scale={tw}:{th}")
                     else:
                         # Preserve entire frame; pad to target canvas.
-                        filters.append(f"scale={tw}:{th}:force_original_aspect_ratio=decrease")
-                        filters.append(f"pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2:color=0x101010")
+                        filters.append(
+                            f"scale={tw}:{th}:force_original_aspect_ratio=decrease"
+                        )
+                        filters.append(
+                            f"pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2:color=0x101010"
+                        )
                         filters.append("setsar=1")
             elif aspect_ratio:
                 # Fallback for requests with aspect ratio only and no explicit resolution.
@@ -579,17 +639,23 @@ class VideoProcessor:
             if not filters:
                 # Nothing to do, just copy
                 import shutil
+
                 shutil.copy(self.video_path, output_path)
                 return output_path
 
             vf = ",".join(filters)
             cmd = [
-                'ffmpeg', '-y',
-                '-i', self.video_path,
-                '-vf', vf,
-                '-c:a', 'copy',
-                '-preset', 'fast',
-                output_path
+                "ffmpeg",
+                "-y",
+                "-i",
+                self.video_path,
+                "-vf",
+                vf,
+                "-c:a",
+                "copy",
+                "-preset",
+                "fast",
+                output_path,
             ]
             print(f"🎬 Transform: ffmpeg -vf '{vf}'")
             subprocess.run(cmd, check=True, capture_output=True)

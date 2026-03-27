@@ -81,18 +81,39 @@ class EditPreviewRequest(BaseModel):
 
 
 class RenderRequest(BaseModel):
-    video_path: str
+    video_path: Optional[str] = None
+    video_id: Optional[str] = None
+    custom_segments: Optional[List[Dict]] = None
+    manual_transcript: Optional[str] = None
     effects: Optional[List[Dict]] = None
     music_path: Optional[str] = None
+    music_file: Optional[str] = None
+    music_volume: Optional[float] = 0.3
     subtitles: Optional[List[Dict]] = None
+    add_subtitles: Optional[bool] = False
+    add_music: Optional[bool] = False
     trim_start: Optional[float] = None
     trim_end: Optional[float] = None
     style_preset: str = "sleek"
     resolution: Optional[str] = None
+    platform: Optional[str] = None
+    format: Optional[str] = None
+    aspect_ratio: Optional[str] = None
 
 
 class ProcessRequest(BaseModel):
-    video_path: str
+    # Fields the frontend actually sends
+    video_id: Optional[str] = None
+    style_preset: Optional[str] = "sleek"
+    add_subtitles: Optional[bool] = False
+    trim_boring_parts: Optional[bool] = False
+    user_prompt: Optional[str] = None
+    platform: Optional[str] = None
+    format: Optional[str] = None
+    aspect_ratio: Optional[str] = None
+    resolution: Optional[str] = None
+    # Also accept the original names for API compatibility
+    video_path: Optional[str] = None
     instruction: Optional[str] = None
     effects: Optional[List[str]] = None
     music_id: Optional[str] = None
@@ -112,10 +133,15 @@ def _resolve_video_path(video_path: str) -> str:
     p = Path(video_path)
     if p.is_absolute() and p.exists():
         return str(p)
-    # Try in uploads dir
-    candidate = UPLOADS_DIR / Path(video_path).name
+    # Try in uploads dir (exact match)
+    candidate = UPLOADS_DIR / p.name
     if candidate.exists():
         return str(candidate)
+    # Try with common video extensions (video_id without extension)
+    for ext in (".mp4", ".mov", ".avi", ".mkv", ".webm"):
+        candidate = UPLOADS_DIR / f"{p.stem}{ext}"
+        if candidate.exists():
+            return str(candidate)
     raise FileNotFoundError(f"Video not found: {video_path}")
 
 
@@ -175,74 +201,271 @@ async def edit_preview(req: EditPreviewRequest):
 @router.post("/render", summary="Full-quality final render")
 async def render_video(req: RenderRequest):
     """
-    Render the final edited video with all effects, music, subtitles applied.
-    This produces the full-quality output for download/sharing.
+    Render the final edited video with cuts, aspect ratio, subtitles, and music.
     """
-    try:
-        video_path = _resolve_video_path(req.video_path)
-        output = _output_path()
+    from backend.db import init_db, save_job
+    import json
+    import subprocess
 
+    DB_PATH = ROOT_DIR / "data" / "jobs.db"
+
+    try:
+        raw_path = req.video_path or req.video_id
+        if not raw_path:
+            raise HTTPException(
+                status_code=400, detail="video_id or video_path is required"
+            )
+        video_path = _resolve_video_path(raw_path)
+        video_id = req.video_id or Path(video_path).stem
+
+        # Update status to rendering — preserve existing job data
+        conn = init_db(DB_PATH)
+        cursor = conn.execute("SELECT data FROM jobs WHERE video_id = ?", (video_id,))
+        row = cursor.fetchone()
+        existing_job = json.loads(row[0]) if row else {}
+        existing_job.update({"status": "rendering", "progress": 80})
+        save_job(conn, video_id, existing_job)
+        conn.close()
+
+        # Get video duration for segment calculations
         from backend.video_processor import VideoProcessor
 
-        # Step 1: Trim if requested
+        vp_info = VideoProcessor(video_path)
+        duration = vp_info.duration
+
         current_path = video_path
-        if req.trim_start is not None and req.trim_end is not None:
-            trim_output = _output_path()
-            vp = VideoProcessor(current_path)
-            current_path = vp.trim_video(req.trim_start, req.trim_end, trim_output)
 
-        # Step 2: Apply effects chain
-        if req.effects:
-            from backend.services.effects_library import moviepy_effect_processor
+        # ── Step 1: Cut out selected segments (keep the rest) ──────────
+        logger.info(
+            f"🎬 Render start: video_id={video_id}, custom_segments={req.custom_segments}, aspect_ratio={req.aspect_ratio}, add_subtitles={req.add_subtitles}, add_music={req.add_music}"
+        )
+        if req.custom_segments and len(req.custom_segments) > 0:
+            # custom_segments are the ranges to REMOVE
+            # Build the ranges to KEEP (inverse of cuts)
+            cuts = sorted(req.custom_segments, key=lambda s: s.get("start", 0))
+            keep_ranges = []
+            cursor = 0.0
+            for cut in cuts:
+                cut_start = float(cut.get("start", 0))
+                cut_end = float(cut.get("end", 0))
+                if cut_start > cursor:
+                    keep_ranges.append((cursor, cut_start))
+                cursor = max(cursor, cut_end)
+            if cursor < duration:
+                keep_ranges.append((cursor, duration))
 
-            for eff in req.effects:
-                effect_output = _output_path()
-                eff_id = eff.get("id", "")
-                eff_params = eff.get("params", {})
-                moviepy_effect_processor.apply_effect_to_file(
-                    current_path, effect_output, eff_id, eff_params
+            if keep_ranges:
+                # Trim each kept segment and concatenate
+                kept_files = []
+                for i, (start, end) in enumerate(keep_ranges):
+                    if end - start < 0.1:  # Skip tiny segments
+                        continue
+                    seg_output = _output_path()
+                    vp = VideoProcessor(current_path)
+                    vp.trim_video(start, end, seg_output)
+                    kept_files.append(seg_output)
+
+                if len(kept_files) > 1:
+                    # Concatenate segments with ffmpeg
+                    concat_list = ROOT_DIR / "data" / "temp" / f"{video_id}_concat.txt"
+                    concat_list.parent.mkdir(parents=True, exist_ok=True)
+                    with open(concat_list, "w") as f:
+                        for fpath in kept_files:
+                            f.write(f"file '{fpath}'\n")
+                    concat_output = _output_path()
+                    cmd = [
+                        "ffmpeg",
+                        "-y",
+                        "-f",
+                        "concat",
+                        "-safe",
+                        "0",
+                        "-i",
+                        str(concat_list),
+                        "-c",
+                        "copy",
+                        concat_output,
+                    ]
+                    subprocess.run(cmd, check=True, capture_output=True)
+                    current_path = concat_output
+                    concat_list.unlink(missing_ok=True)
+                elif len(kept_files) == 1:
+                    current_path = kept_files[0]
+
+        # ── Step 2: Apply aspect ratio / platform resize ───────────────
+        aspect = req.aspect_ratio
+        if req.platform and not aspect:
+            # Map platform to aspect ratio
+            platform_map = {
+                "tiktok": "9:16",
+                "instagram-reel": "9:16",
+                "youtube-short": "9:16",
+                "instagram-post": "1:1",
+            }
+            aspect = platform_map.get(req.platform, "9:16")
+
+        if aspect:
+            try:
+                transform_output = _output_path()
+                vp = VideoProcessor(current_path)
+                # Parse aspect ratio to resolution
+                res_map = {
+                    "9:16": "1080:1920",
+                    "16:9": "1920:1080",
+                    "1:1": "1080:1080",
+                    "4:5": "1080:1350",
+                }
+                res = res_map.get(aspect, "1080:1920")
+                logger.info(
+                    f"📐 Transforming to aspect_ratio={aspect}, resolution={res}"
                 )
-                current_path = effect_output
+                vp.transform_video(
+                    transform_output,
+                    aspect_ratio=aspect,
+                    resolution=res,
+                    resize_mode="fit_blur",
+                )
+                current_path = transform_output
+                logger.info(f"📐 Transform done: {current_path}")
+            except Exception as exc:
+                logger.error(f"📐 Transform FAILED: {exc}")
+        else:
+            logger.info(f"📐 No aspect ratio to apply (aspect={aspect})")
 
-        # Step 3: Add subtitles
-        if req.subtitles:
-            sub_output = _output_path()
-            vp = VideoProcessor(current_path)
-            subtitle_data = [
-                s if isinstance(s, dict) else s.dict() for s in req.subtitles
-            ]
-            current_path = vp.add_subtitles(
-                subtitle_file="",  # Not used when subtitle_data provided
-                output_path=sub_output,
-                style_preset=req.style_preset,
-                subtitle_data=subtitle_data,
+        # ── Step 3: Add subtitles if requested ─────────────────────────
+        if req.add_subtitles:
+            # Get segments from the job database
+            conn = init_db(DB_PATH)
+            cursor = conn.execute(
+                "SELECT data FROM jobs WHERE video_id = ?", (video_id,)
             )
+            row = cursor.fetchone()
 
-        # Step 4: Mix music
-        if req.music_path:
-            music_output = _output_path()
-            from backend.editing_engine import MoviePyAudioEngine
+            subtitle_segments = []
+            if row:
+                job = json.loads(row[0])
+                subtitle_segments = job.get("segments", [])
 
-            with MoviePyAudioEngine(req.music_path) as aeng:
-                aeng.mix_with_ducking(
-                    video_path=current_path,
-                    output_path=music_output,
-                    is_preview=False,
-                )
-            current_path = music_output
+            conn.close()
 
-        # Step 5: Copy final output
+            logger.info(
+                f"📝 Subtitles: add_subtitles={req.add_subtitles}, segments_found={len(subtitle_segments)}"
+            )
+            if subtitle_segments:
+                try:
+                    sub_output = _output_path()
+                    vp = VideoProcessor(current_path)
+                    vp.add_subtitles(
+                        subtitle_file="",
+                        output_path=sub_output,
+                        style_preset=req.style_preset or "sleek",
+                        subtitle_data=subtitle_segments,
+                    )
+                    current_path = sub_output
+                    logger.info(f"📝 Subtitles done: {current_path}")
+                except Exception as exc:
+                    logger.error(f"📝 Subtitles FAILED: {exc}")
+            else:
+                logger.warning(f"📝 No subtitle segments found in DB for {video_id}")
+        else:
+            logger.info(f"📝 Subtitles skipped (add_subtitles={req.add_subtitles})")
+
+        # ── Step 4: Mix music if requested ─────────────────────────────
+        logger.info(f"🎵 Music: add_music={req.add_music}, music_file={req.music_file}")
+        if req.add_music and req.music_file:
+            music_path = req.music_file
+
+            # Try direct path first
+            if not Path(music_path).exists():
+                # Look up in music directory
+                music_dir = ROOT_DIR / "data" / "music"
+                candidate = music_dir / Path(music_path).name
+                if candidate.exists():
+                    music_path = str(candidate)
+                else:
+                    # Look up by track_id in database
+                    try:
+                        conn = init_db(DB_PATH)
+                        cursor = conn.execute(
+                            "SELECT local_path FROM music_cache WHERE track_id = ?",
+                            (music_path,),
+                        )
+                        row = cursor.fetchone()
+                        conn.close()
+                        if row and Path(row[0]).exists():
+                            music_path = row[0]
+                    except Exception:
+                        pass
+
+            logger.info(
+                f"🎵 Music resolved path: {music_path}, exists={Path(music_path).exists() if music_path else False}"
+            )
+            if music_path and Path(music_path).exists():
+                try:
+                    music_output = _output_path()
+                    vol = req.music_volume or 0.3
+
+                    # FFmpeg: mix original audio with background music
+                    cmd = [
+                        "ffmpeg",
+                        "-y",
+                        "-i",
+                        current_path,
+                        "-i",
+                        music_path,
+                        "-filter_complex",
+                        f"[1:a]volume={vol}[bg];[0:a][bg]amix=inputs=2:duration=shortest:dropout_transition=2[outa]",
+                        "-map",
+                        "0:v",
+                        "-map",
+                        "[outa]",
+                        "-c:v",
+                        "copy",
+                        "-preset",
+                        "fast",
+                        music_output,
+                    ]
+                    subprocess.run(cmd, check=True, capture_output=True)
+                    current_path = music_output
+                    logger.info(f"🎵 Music done: {current_path}")
+                except Exception as exc:
+                    logger.error(f"🎵 Music FAILED: {exc}")
+            else:
+                logger.warning(f"🎵 Music file not found: {music_path}")
+        else:
+            logger.info(f"🎵 Music skipped")
+
+        # ── Step 5: Copy to final output ───────────────────────────────
+        output = _output_path()
         import shutil
 
         if current_path != output:
             shutil.copy(current_path, output)
+
+        output_url = f"/api/download/{Path(output).name}"
+
+        # Save completed status — preserve existing job data (segments, transcript, etc.)
+        conn = init_db(DB_PATH)
+        cursor = conn.execute("SELECT data FROM jobs WHERE video_id = ?", (video_id,))
+        row = cursor.fetchone()
+        existing_job = json.loads(row[0]) if row else {}
+        existing_job.update(
+            {
+                "status": "completed",
+                "progress": 100,
+                "output_path": output,
+                "output_url": output_url,
+            }
+        )
+        save_job(conn, video_id, existing_job)
+        conn.close()
 
         logger.info(f"🎬 Render complete: {output}")
         return JSONResponse(
             {
                 "success": True,
                 "output_path": output,
-                "output_url": f"/api/download/{Path(output).name}",
+                "output_url": output_url,
                 "is_preview": False,
             }
         )
@@ -257,75 +480,174 @@ async def render_video(req: RenderRequest):
 @router.post("/process", summary="Process video with AI agent or manual edits")
 async def process_video(req: ProcessRequest):
     """
-    Process a video either with an AI instruction or manual edit parameters.
-
-    If `instruction` is provided, uses the VideoEditingAgent to interpret it.
-    Otherwise applies the specified effects/subtitles/music directly.
+    Process a video: run full analysis (transcription, virality, Phase 1),
+    then apply any manual edits. Sets status to 'analyzed' so the frontend
+    can show the review UI.
     """
+    from backend.db import init_db, save_job
+
+    DB_PATH = ROOT_DIR / "data" / "jobs.db"
+
     try:
-        video_path = _resolve_video_path(req.video_path)
+        # Resolve video path from either field
+        raw_path = req.video_path or req.video_id
+        if not raw_path:
+            raise HTTPException(
+                status_code=400, detail="video_id or video_path is required"
+            )
+        video_path = _resolve_video_path(raw_path)
+        video_id = req.video_id or Path(video_path).stem
 
-        if req.instruction:
-            # Use AI agent
-            from backend.video_agent import VideoEditingAgent
+        # ── Step 1: Transcription ───────────────────────────────────────────
+        conn = init_db(DB_PATH)
+        save_job(conn, video_id, {"status": "transcribing", "progress": 15})
+        conn.close()
 
-            agent = VideoEditingAgent()
-            result = agent.run(
+        transcript_text = ""
+        segments = []
+        try:
+            from backend.services.transcription import transcription_service
+
+            transcription = transcription_service.transcribe(video_path)
+            segments = transcription.get("segments", [])
+            # Build full transcript text from segments
+            transcript_text = " ".join(
+                seg.get("text", "").strip()
+                for seg in segments
+                if seg.get("text", "").strip()
+            )
+        except Exception as exc:
+            logger.warning(f"Transcription failed: {exc}")
+
+        # ── Step 2: Virality scoring ────────────────────────────────────────
+        conn = init_db(DB_PATH)
+        save_job(conn, video_id, {"status": "analyzing", "progress": 40})
+        conn.close()
+
+        virality = {}
+        try:
+            from backend.virality.scorer import compute_virality_score
+            from backend.video_processor import VideoProcessor
+
+            vp = VideoProcessor(video_path)
+            virality = compute_virality_score(
                 video_path=video_path,
-                instruction=req.instruction,
-                subtitle_data=req.subtitles,
-                audio_path=None,
+                transcript=transcript_text,
+                duration_seconds=vp.duration,
+                prompt=req.user_prompt or "",
+                subtitle_data=segments,
             )
-            return JSONResponse(result)
+        except Exception as exc:
+            logger.warning(f"Virality scoring failed: {exc}")
 
-        # Manual processing — chain operations
-        current_path = video_path
+        # ── Step 3: Phase 1 analysis (OCR, faces, logos) ───────────────────
+        conn = init_db(DB_PATH)
+        save_job(conn, video_id, {"status": "enriching", "progress": 60})
+        conn.close()
 
-        # Apply trim
-        if req.trim:
-            trim_output = _output_path()
-            from backend.video_processor import VideoProcessor
+        phase1 = {}
+        duration = 0.0
+        try:
+            from backend.phase1_pipeline import PhaseOneAnalyzer
 
-            vp = VideoProcessor(current_path)
-            start = req.trim.get("start", 0)
-            end = req.trim.get("end", vp.duration)
-            current_path = vp.trim_video(start, end, trim_output)
+            analyzer = PhaseOneAnalyzer(temp_dir=ROOT_DIR / "data" / "temp")
+            result = analyzer.process(video_path)
+            phase1 = result.to_dict()
+            duration = result.duration
+        except Exception as exc:
+            logger.warning(f"Phase 1 analysis failed: {exc}")
+            try:
+                from backend.video_processor import VideoProcessor
 
-        # Apply effects
-        if req.effects:
-            from backend.services.effects_library import moviepy_effect_processor
+                vp = VideoProcessor(video_path)
+                duration = vp.duration
+            except Exception:
+                pass
 
-            for eff_id in req.effects:
-                effect_output = _output_path()
-                moviepy_effect_processor.apply_effect_to_file(
-                    current_path, effect_output, eff_id
-                )
-                current_path = effect_output
+        # ── Step 4: Build AI analysis summary ──────────────────────────────
+        overall_score = virality.get("virality_score", 50)
+        if isinstance(overall_score, (int, float)):
+            overall_score = round(overall_score / 10)  # Convert 0-100 to 0-10
+        else:
+            overall_score = 5
 
-        # Add subtitles
-        if req.subtitles:
-            sub_output = _output_path()
-            from backend.video_processor import VideoProcessor
+        suggestions = virality.get("suggestions", [])
 
-            vp = VideoProcessor(current_path)
-            current_path = vp.add_subtitles(
-                subtitle_file="",
-                output_path=sub_output,
-                subtitle_data=req.subtitles,
+        # Build suggested cuts from segments with low retention
+        suggested_cuts = []
+        for seg in segments:
+            score = 5  # default
+            # Simple heuristic: short pauses or filler words suggest boring parts
+            text = seg.get("text", "").lower().strip()
+            if len(text) < 10 or text in ("um", "uh", "hmm", "...", ""):
+                score = 3
+            elif len(text) > 100:
+                score = 7
+            suggested_cuts.append(
+                {
+                    "start": round(seg.get("start", 0), 1),
+                    "end": round(seg.get("end", 0), 1),
+                    "text": seg.get("text", ""),
+                    "retention_score": score,
+                    "recommendation": "cut" if score <= 4 else "keep",
+                    "reason": "Short/pause segment"
+                    if score <= 4
+                    else "Content segment",
+                }
             )
+
+        summary = f"Video analyzed: {len(segments)} segments, {duration:.1f}s duration."
+        if suggestions:
+            summary += f" {len(suggestions)} improvement suggestions found."
+
+        ai_analysis = {
+            "overall_score": overall_score,
+            "summary": summary,
+            "suggested_cuts": suggested_cuts,
+            "virality": virality,
+            "suggestions": suggestions,
+        }
+
+        # ── Step 5: Save analyzed job ──────────────────────────────────────
+        conn = init_db(DB_PATH)
+        save_job(
+            conn,
+            video_id,
+            {
+                "status": "analyzed",
+                "progress": 75,
+                "video_path": video_path,
+                "transcript": transcript_text,
+                "segments": segments,
+                "ai_analysis": ai_analysis,
+                "phase_one_metadata": phase1,
+                "duration": duration,
+            },
+        )
+        conn.close()
 
         return JSONResponse(
             {
                 "success": True,
-                "output_path": current_path,
-                "output_url": f"/api/download/{Path(current_path).name}",
+                "video_id": video_id,
+                "status": "analyzed",
+                "message": "Analysis complete. Review your video.",
             }
         )
 
+    except HTTPException:
+        raise
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     except Exception as exc:
         logger.error(f"Process failed: {exc}")
+        try:
+            video_id = req.video_id or "unknown"
+            conn = init_db(DB_PATH)
+            save_job(conn, video_id, {"status": "error", "error": str(exc)})
+            conn.close()
+        except Exception:
+            pass
         raise HTTPException(status_code=500, detail=f"Process failed: {exc}")
 
 

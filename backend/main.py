@@ -139,13 +139,28 @@ try:
 
     app.include_router(upload.router, prefix="/api/upload", tags=["upload"])
     app.include_router(video.router, prefix="/api/video", tags=["video"])
-    app.include_router(edit.router, prefix="/api/edit", tags=["edit"])
+    app.include_router(edit.router, prefix="/api", tags=["edit"])
     app.include_router(analysis.router, prefix="/api/analysis", tags=["analysis"])
     app.include_router(export.router, prefix="/api/export", tags=["export"])
     app.include_router(music.router, prefix="/api/music", tags=["music"])
     app.include_router(download.router, prefix="/api/download", tags=["download"])
+    logger.info("✅ All routers loaded successfully")
+    # Log edit router routes for debugging
+    for route in edit.router.routes:
+        if hasattr(route, "path") and hasattr(route, "methods"):
+            logger.info(f"   Edit route: {route.methods} /api{route.path}")
 except ImportError as exc:
-    logger.warning("Some routers not loaded: %s", exc)
+    logger.error("❌ Router import FAILED: %s", exc, exc_info=True)
+
+
+# ── Debug: list all registered routes ─────────────────────────────────────────
+@app.get("/debug/routes", tags=["system"], summary="List all routes")
+async def debug_routes():
+    routes = []
+    for r in app.routes:
+        if hasattr(r, "path") and hasattr(r, "methods"):
+            routes.append({"methods": list(r.methods), "path": r.path})
+    return sorted(routes, key=lambda x: x["path"])
 
 
 # ── WebSocket progress endpoint ───────────────────────────────────────────────
