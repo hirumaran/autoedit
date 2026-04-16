@@ -11,6 +11,7 @@ export HF_ENDPOINT="${HF_ENDPOINT:-https://hf-mirror.com}"
 export HF_HUB_DISABLE_TELEMETRY=1
 export HF_HUB_DISABLE_PROGRESS_BARS=0
 export HF_TRANSFER_ENABLE=1
+export TOKENIZERS_PARALLELISM=false
 # Set to 1 to force offline mode (no network attempts at all)
 export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-0}"
 

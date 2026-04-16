@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 # ── Optional heavy imports ────────────────────────────────────────────────────
 try:
     import cv2
+
     CV2_AVAILABLE = True
 except ImportError:
     CV2_AVAILABLE = False
@@ -36,11 +37,13 @@ except ImportError:
 
 try:
     import mediapipe as mp
-    _mp_face = mp.solutions.face_detection
+    import mediapipe.python.solutions.face_detection as mp_face
+
+    _mp_face = mp.solutions.face_detection if hasattr(mp, "solutions") else mp_face
     MEDIAPIPE_AVAILABLE = True
-except ImportError:
+except (ImportError, AttributeError) as e:
     MEDIAPIPE_AVAILABLE = False
-    logger.warning("⚠️  MediaPipe not available — face presence will be zero")
+    logger.warning(f"⚠️  MediaPipe not available ({e}) — face presence will be zero")
 
 
 # ── Constants ─────────────────────────────────────────────────────────────────
@@ -56,8 +59,10 @@ MOTION_HIGH_WATERMARK = 15.0
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _load_frames(video_path: str, sample_every: int = SAMPLE_EVERY_N_FRAMES
-                 ) -> Tuple[List[np.ndarray], float]:
+
+def _load_frames(
+    video_path: str, sample_every: int = SAMPLE_EVERY_N_FRAMES
+) -> Tuple[List[np.ndarray], float]:
     """
     Read sampled BGR frames from video.  Returns (frames, fps).
     Raises RuntimeError if cv2 unavailable or file cannot be opened.
@@ -87,6 +92,7 @@ def _load_frames(video_path: str, sample_every: int = SAMPLE_EVERY_N_FRAMES
 
 # ── Signal: Motion Intensity ──────────────────────────────────────────────────
 
+
 def compute_motion_intensity(frames: List[np.ndarray]) -> float:
     """
     Compute average optical-flow magnitude across consecutive sampled frame pairs.
@@ -111,8 +117,7 @@ def compute_motion_intensity(frames: List[np.ndarray]) -> float:
         # Farneback params: pyr_scale=0.5, levels=3, winsize=15,
         #   iterations=3, poly_n=5, poly_sigma=1.2, flags=0
         flow = cv2.calcOpticalFlowFarneback(
-            prev_gray, curr_gray, None,
-            0.5, 3, 15, 3, 5, 1.2, 0
+            prev_gray, curr_gray, None, 0.5, 3, 15, 3, 5, 1.2, 0
         )
         # Magnitude of (u, v) flow vectors
         mag = np.sqrt(flow[..., 0] ** 2 + flow[..., 1] ** 2)
@@ -129,8 +134,10 @@ def compute_motion_intensity(frames: List[np.ndarray]) -> float:
 
 # ── Signal: Scene Cut Density ─────────────────────────────────────────────────
 
-def compute_cut_density(frames: List[np.ndarray], fps: float,
-                         sample_every: int = SAMPLE_EVERY_N_FRAMES) -> float:
+
+def compute_cut_density(
+    frames: List[np.ndarray], fps: float, sample_every: int = SAMPLE_EVERY_N_FRAMES
+) -> float:
     """
     Estimate scene cuts per second.
 
@@ -168,6 +175,7 @@ def compute_cut_density(frames: List[np.ndarray], fps: float,
 
 # ── Signal: Face Presence ─────────────────────────────────────────────────────
 
+
 def compute_face_presence(frames: List[np.ndarray]) -> float:
     """
     Fraction of sampled frames that contain ≥1 detected face.
@@ -182,8 +190,8 @@ def compute_face_presence(frames: List[np.ndarray]) -> float:
 
     face_count = 0
     with _mp_face.FaceDetection(
-        model_selection=0,          # 0 = short-range (≤2 m), 1 = full-range
-        min_detection_confidence=0.5
+        model_selection=0,  # 0 = short-range (≤2 m), 1 = full-range
+        min_detection_confidence=0.5,
     ) as detector:
         for frame in frames:
             # MediaPipe expects RGB
@@ -196,6 +204,7 @@ def compute_face_presence(frames: List[np.ndarray]) -> float:
 
 
 # ── Signal: Lighting / Color Variance ────────────────────────────────────────
+
 
 def compute_lighting_variance(frames: List[np.ndarray]) -> float:
     """
@@ -233,6 +242,7 @@ def compute_lighting_variance(frames: List[np.ndarray]) -> float:
 
 
 # ── Module Entry Point ────────────────────────────────────────────────────────
+
 
 def score_content_quality(video_path: str) -> Dict[str, float]:
     """

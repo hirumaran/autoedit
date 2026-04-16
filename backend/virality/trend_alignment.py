@@ -131,7 +131,7 @@ def fetch_google_trends(geo: str = "US", n: int = 20) -> List[str]:
     if not PYTRENDS_AVAILABLE:
         return []
     try:
-        pt = TrendReq(hl="en-US", tz=360, timeout=(5, 15), retries=2)
+        pt = TrendReq(hl="en-US", tz=360, timeout=(5, 15))
         df = pt.trending_searches(pn=geo)
         # df is a single-column DataFrame with trending search terms
         keywords = df[0].dropna().tolist()[:n]

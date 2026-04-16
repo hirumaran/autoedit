@@ -35,7 +35,10 @@ FRONTEND_DIST = ROOT_DIR / "frontend" / "dist"  # React build output
 # ── Optional dependency checks ────────────────────────────────────────────────
 def _check_moviepy() -> str:
     try:
-        import moviepy.editor  # noqa: F401
+        try:
+            import moviepy.editor  # noqa: F401
+        except ImportError:
+            import moviepy  # type: ignore # noqa: F401
 
         return "✅ MoviePy available"
     except ImportError:

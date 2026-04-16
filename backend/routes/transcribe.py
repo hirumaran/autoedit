@@ -1,5 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from services.transcription import transcription_service
+from backend.services.transcription import transcription_service
 import shutil
 import os
 

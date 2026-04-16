@@ -110,7 +110,9 @@ try:
     # MultiplySpeed / SpeedX
     for _name in ("MultiplySpeed", "SpeedX"):
         try:
-            _MultiplySpeed = getattr(__import__("moviepy.video.fx", fromlist=[_name]), _name)
+            _MultiplySpeed = getattr(
+                __import__("moviepy.video.fx", fromlist=[_name]), _name
+            )
             break
         except (ImportError, AttributeError):
             continue
@@ -118,30 +120,55 @@ try:
     MOVIEPY_AVAILABLE = True
 
     # Log what we found
-    _found = [n for n, v in [
-        ("FadeIn", _FadeIn), ("FadeOut", _FadeOut), ("Crop", _Crop),
-        ("MirrorX", _MirrorX), ("Resize", _Resize), ("MultiplySpeed", _MultiplySpeed),
-        ("AudioFadeIn", _AudioFadeIn), ("AudioFadeOut", _AudioFadeOut),
-        ("AudioLoop", _AudioLoop), ("MultiplyVolume", _MultiplyVolume),
-    ] if v is not None]
-    _missing = [n for n, v in [
-        ("FadeIn", _FadeIn), ("FadeOut", _FadeOut), ("Crop", _Crop),
-        ("MirrorX", _MirrorX), ("Resize", _Resize), ("MultiplySpeed", _MultiplySpeed),
-    ] if v is None]
+    _found = [
+        n
+        for n, v in [
+            ("FadeIn", _FadeIn),
+            ("FadeOut", _FadeOut),
+            ("Crop", _Crop),
+            ("MirrorX", _MirrorX),
+            ("Resize", _Resize),
+            ("MultiplySpeed", _MultiplySpeed),
+            ("AudioFadeIn", _AudioFadeIn),
+            ("AudioFadeOut", _AudioFadeOut),
+            ("AudioLoop", _AudioLoop),
+            ("MultiplyVolume", _MultiplyVolume),
+        ]
+        if v is not None
+    ]
+    _missing = [
+        n
+        for n, v in [
+            ("FadeIn", _FadeIn),
+            ("FadeOut", _FadeOut),
+            ("Crop", _Crop),
+            ("MirrorX", _MirrorX),
+            ("Resize", _Resize),
+            ("MultiplySpeed", _MultiplySpeed),
+        ]
+        if v is None
+    ]
 
     logger.info(f"✅ MoviePy 2.x loaded — effects available: {', '.join(_found)}")
     if _missing:
-        logger.warning(f"⚠️  MoviePy effects missing (will use FFmpeg): {', '.join(_missing)}")
+        logger.warning(
+            f"⚠️  MoviePy effects missing (will use FFmpeg): {', '.join(_missing)}"
+        )
 
 except ImportError as e:
     MOVIEPY_AVAILABLE = False
-    logger.warning(f"⚠️  MoviePy not available ({e}) — all operations fall back to FFmpeg subprocess")
+    logger.warning(
+        f"⚠️  MoviePy not available ({e}) — all operations fall back to FFmpeg subprocess"
+    )
 except Exception as e:
     MOVIEPY_AVAILABLE = False
-    logger.warning(f"⚠️  MoviePy load error ({e}) — all operations fall back to FFmpeg subprocess")
+    logger.warning(
+        f"⚠️  MoviePy load error ({e}) — all operations fall back to FFmpeg subprocess"
+    )
 
 
 # ── Helpers: apply effect or skip ─────────────────────────────────────────────
+
 
 def _apply_effects(clip, effects_list):
     """Apply a list of effect instances, skipping any that are None."""
@@ -166,7 +193,10 @@ def _make_effect(cls, *args, **kwargs):
 # Write helpers
 # ---------------------------------------------------------------------------
 
-def _write_videofile(clip, output_path: str, preset: str = "fast", threads: int = 2) -> None:
+
+def _write_videofile(
+    clip, output_path: str, preset: str = "fast", threads: int = 2
+) -> None:
     clip.write_videofile(
         output_path,
         codec="libx264",
@@ -186,19 +216,69 @@ def _write_audiofile(clip, output_path: str) -> None:
 # ---------------------------------------------------------------------------
 
 SUBTITLE_STYLE_MOVIEPY: Dict[str, Dict] = {
-    "meme":    {"font": "Impact",        "font_size": 64, "color": "white",   "stroke_color": "black", "stroke_width": 4,  "position": ("center", 0.85)},
-    "minimal": {"font": "Helvetica-Neue","font_size": 44, "color": "white",   "stroke_color": "black", "stroke_width": 1,  "position": ("center", 0.88)},
-    "bold":    {"font": "Arial-Bold",    "font_size": 52, "color": "#FFFF00", "stroke_color": "black", "stroke_width": 2,  "position": ("center", 0.87)},
-    "elegant": {"font": "Georgia",       "font_size": 48, "color": "#F5E6CC", "stroke_color": "black", "stroke_width": 1,  "position": ("center", 0.86)},
-    "retro":   {"font": "Arial-Bold",    "font_size": 54, "color": "#37FFEB", "stroke_color": "black", "stroke_width": 3,  "position": ("center", 0.85)},
-    "sleek":   {"font": "Arial",         "font_size": 46, "color": "white",   "stroke_color": "black", "stroke_width": 1,  "position": ("center", 0.88)},
-    "neon":    {"font": "Courier-Bold",  "font_size": 46, "color": "#4DE0F4", "stroke_color": "black", "stroke_width": 2,  "position": ("center", 0.87)},
+    "meme": {
+        "font": "Impact",
+        "font_size": 64,
+        "color": "white",
+        "stroke_color": "black",
+        "stroke_width": 4,
+        "position": ("center", 0.85),
+    },
+    "minimal": {
+        "font": "Helvetica-Neue",
+        "font_size": 44,
+        "color": "white",
+        "stroke_color": "black",
+        "stroke_width": 1,
+        "position": ("center", 0.88),
+    },
+    "bold": {
+        "font": "Arial-Bold",
+        "font_size": 52,
+        "color": "#FFFF00",
+        "stroke_color": "black",
+        "stroke_width": 2,
+        "position": ("center", 0.87),
+    },
+    "elegant": {
+        "font": "Georgia",
+        "font_size": 48,
+        "color": "#F5E6CC",
+        "stroke_color": "black",
+        "stroke_width": 1,
+        "position": ("center", 0.86),
+    },
+    "retro": {
+        "font": "Arial-Bold",
+        "font_size": 54,
+        "color": "#37FFEB",
+        "stroke_color": "black",
+        "stroke_width": 3,
+        "position": ("center", 0.85),
+    },
+    "sleek": {
+        "font": "Arial",
+        "font_size": 46,
+        "color": "white",
+        "stroke_color": "black",
+        "stroke_width": 1,
+        "position": ("center", 0.88),
+    },
+    "neon": {
+        "font": "Courier-Bold",
+        "font_size": 46,
+        "color": "#4DE0F4",
+        "stroke_color": "black",
+        "stroke_width": 2,
+        "position": ("center", 0.87),
+    },
 }
 
 
 # ---------------------------------------------------------------------------
 # MoviePyEngine
 # ---------------------------------------------------------------------------
+
 
 class MoviePyEngine:
     """High-level video editing engine for MoviePy 2.x."""
@@ -209,17 +289,26 @@ class MoviePyEngine:
         if MOVIEPY_AVAILABLE:
             try:
                 self._clip = VideoFileClip(video_path)
-                logger.info(f"🎬 MoviePyEngine loaded: {video_path} ({self._clip.duration:.1f}s)")
+                logger.info(
+                    f"🎬 MoviePyEngine loaded: {video_path} ({self._clip.duration:.1f}s)"
+                )
             except Exception as exc:
-                logger.warning(f"⚠️  Could not load clip ({exc}); FFmpeg fallback active")
+                logger.warning(
+                    f"⚠️  Could not load clip ({exc}); FFmpeg fallback active"
+                )
 
-    def __enter__(self): return self
-    def __exit__(self, *_): self.close()
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        self.close()
 
     def close(self):
         if self._clip is not None:
-            try: self._clip.close()
-            except Exception: pass
+            try:
+                self._clip.close()
+            except Exception:
+                pass
             self._clip = None
 
     @property
@@ -236,10 +325,19 @@ class MoviePyEngine:
 
     def get_frame_at(self, t: float):
         if self._clip is None:
-            raise RuntimeError("MoviePy clip not available; use cv2.VideoCapture instead")
+            raise RuntimeError(
+                "MoviePy clip not available; use cv2.VideoCapture instead"
+            )
         return self._clip.get_frame(t)
 
-    def trim(self, start: float, end: float, output_path: str, *, use_ffmpeg_fallback: bool = True) -> str:
+    def trim(
+        self,
+        start: float,
+        end: float,
+        output_path: str,
+        *,
+        use_ffmpeg_fallback: bool = True,
+    ) -> str:
         if self._clip is not None:
             try:
                 sub = self._clip.subclipped(start, min(end, self._clip.duration))
@@ -253,11 +351,19 @@ class MoviePyEngine:
             return self._ffmpeg_trim(start, end, output_path)
         raise RuntimeError("trim failed")
 
-    def concatenate(self, segments: List[Tuple[float, float]], output_path: str, transition: str = "none") -> str:
+    def concatenate(
+        self,
+        segments: List[Tuple[float, float]],
+        output_path: str,
+        transition: str = "none",
+    ) -> str:
         if self._clip is None:
             return self._ffmpeg_concat(segments, output_path)
         try:
-            subclips = [self._clip.subclipped(s, min(e, self._clip.duration)) for s, e in segments]
+            subclips = [
+                self._clip.subclipped(s, min(e, self._clip.duration))
+                for s, e in segments
+            ]
             if transition == "fade" and _FadeIn and _FadeOut:
                 XFADE = 0.25
                 faded = []
@@ -290,7 +396,9 @@ class MoviePyEngine:
             shutil.copy(self.video_path, output_path)
             return output_path
 
-        style = SUBTITLE_STYLE_MOVIEPY.get(style_preset, SUBTITLE_STYLE_MOVIEPY["sleek"])
+        style = SUBTITLE_STYLE_MOVIEPY.get(
+            style_preset, SUBTITLE_STYLE_MOVIEPY["sleek"]
+        )
         try:
             txt_clips = []
             for seg in subtitle_data:
@@ -308,8 +416,7 @@ class MoviePyEngine:
                     color=style["color"],
                     stroke_color=style["stroke_color"],
                     stroke_width=style["stroke_width"],
-                    method="caption",
-                    size=(int(video_width * 0.88), None),
+                    method="label",
                     text_align="center",
                 )
                 pos = style["position"]
@@ -328,7 +435,9 @@ class MoviePyEngine:
             shutil.copy(self.video_path, output_path)
             return output_path
 
-    def apply_effect(self, output_path: str, effect_id: str, params: Optional[Dict] = None) -> str:
+    def apply_effect(
+        self, output_path: str, effect_id: str, params: Optional[Dict] = None
+    ) -> str:
         if self._clip is None:
             return self._ffmpeg_effect(output_path, effect_id, params)
 
@@ -341,32 +450,44 @@ class MoviePyEngine:
                 return self._ffmpeg_effect(output_path, effect_id, params)
 
             elif effect_id == "speed_ramp" and _MultiplySpeed:
-                clip = _apply_effects(clip, [
-                    _make_effect(_MultiplySpeed, params.get("fast_factor", 1.5))
-                ])
+                clip = _apply_effects(
+                    clip, [_make_effect(_MultiplySpeed, params.get("fast_factor", 1.5))]
+                )
 
             elif effect_id == "zoom_in" and _Resize and _Crop:
                 scale = params.get("scale", 1.3)
                 w, h = clip.size
-                clip = _apply_effects(clip, [
-                    _make_effect(_Resize, newsize=(int(w * scale), int(h * scale))),
-                    _make_effect(_Crop, width=w, height=h,
-                                 x_center=int(w * scale) // 2,
-                                 y_center=int(h * scale) // 2),
-                ])
+                clip = _apply_effects(
+                    clip,
+                    [
+                        _make_effect(_Resize, newsize=(int(w * scale), int(h * scale))),
+                        _make_effect(
+                            _Crop,
+                            width=w,
+                            height=h,
+                            x_center=int(w * scale) // 2,
+                            y_center=int(h * scale) // 2,
+                        ),
+                    ],
+                )
 
             elif effect_id == "flash" and _FadeIn and _FadeOut:
                 dur = params.get("duration", 0.1)
-                clip = _apply_effects(clip, [
-                    _make_effect(_FadeIn, dur),
-                    _make_effect(_FadeOut, dur),
-                ])
+                clip = _apply_effects(
+                    clip,
+                    [
+                        _make_effect(_FadeIn, dur),
+                        _make_effect(_FadeOut, dur),
+                    ],
+                )
 
             elif effect_id == "mirror" and _MirrorX:
                 clip = _apply_effects(clip, [_make_effect(_MirrorX)])
 
             else:
-                logger.info(f"Effect '{effect_id}' not available in MoviePy; using FFmpeg")
+                logger.info(
+                    f"Effect '{effect_id}' not available in MoviePy; using FFmpeg"
+                )
                 return self._ffmpeg_effect(output_path, effect_id, params)
 
             _write_videofile(clip, output_path, preset="fast")
@@ -377,7 +498,14 @@ class MoviePyEngine:
             logger.warning(f"⚠️  Effect '{effect_id}' failed ({exc}); FFmpeg fallback")
             return self._ffmpeg_effect(output_path, effect_id, params)
 
-    def export(self, output_path: str, clip=None, preset: str = "medium", threads: int = 2, fps: Optional[float] = None) -> str:
+    def export(
+        self,
+        output_path: str,
+        clip=None,
+        preset: str = "medium",
+        threads: int = 2,
+        fps: Optional[float] = None,
+    ) -> str:
         target = clip if clip is not None else self._clip
         if target is None:
             shutil.copy(self.video_path, output_path)
@@ -395,54 +523,123 @@ class MoviePyEngine:
 
     def _ffmpeg_trim(self, start: float, end: float, output_path: str) -> str:
         subprocess.run(
-            ["ffmpeg", "-y", "-ss", str(start), "-i", self.video_path,
-             "-t", str(end - start), "-c", "copy", output_path],
-            check=True, capture_output=True,
+            [
+                "ffmpeg",
+                "-y",
+                "-ss",
+                str(start),
+                "-i",
+                self.video_path,
+                "-t",
+                str(end - start),
+                "-c:v",
+                "libx264",
+                "-preset",
+                "fast",
+                "-crf",
+                "18",
+                "-c:a",
+                "aac",
+                "-b:a",
+                "192k",
+                "-avoid_negative_ts",
+                "make_zero",
+                output_path,
+            ],
+            check=True,
+            capture_output=True,
         )
         logger.info(f"✂️  FFmpeg trim {start}→{end}s → {output_path}")
         return output_path
 
-    def _ffmpeg_concat(self, segments: List[Tuple[float, float]], output_path: str) -> str:
+    def _ffmpeg_concat(
+        self, segments: List[Tuple[float, float]], output_path: str
+    ) -> str:
         import tempfile
+
         tmp_dir = Path(tempfile.mkdtemp(prefix="concat_"))
         try:
             segment_files = []
             for i, (s, e) in enumerate(segments):
                 seg_path = str(tmp_dir / f"seg_{i:04d}.mp4")
                 subprocess.run(
-                    ["ffmpeg", "-y", "-ss", str(s), "-i", self.video_path,
-                     "-t", str(e - s), "-c", "copy", seg_path],
-                    check=True, capture_output=True,
+                    [
+                        "ffmpeg",
+                        "-y",
+                        "-ss",
+                        str(s),
+                        "-i",
+                        self.video_path,
+                        "-t",
+                        str(e - s),
+                        "-c:v",
+                        "libx264",
+                        "-preset",
+                        "fast",
+                        "-crf",
+                        "18",
+                        "-c:a",
+                        "aac",
+                        "-b:a",
+                        "192k",
+                        "-avoid_negative_ts",
+                        "make_zero",
+                        seg_path,
+                    ],
+                    check=True,
+                    capture_output=True,
                 )
                 segment_files.append(seg_path)
             list_file = tmp_dir / "concat.txt"
             list_file.write_text("\n".join(f"file '{p}'" for p in segment_files))
             subprocess.run(
-                ["ffmpeg", "-y", "-f", "concat", "-safe", "0",
-                 "-i", str(list_file), "-c", "copy", output_path],
-                check=True, capture_output=True,
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-f",
+                    "concat",
+                    "-safe",
+                    "0",
+                    "-i",
+                    str(list_file),
+                    "-c:v",
+                    "libx264",
+                    "-preset",
+                    "fast",
+                    "-crf",
+                    "18",
+                    "-c:a",
+                    "aac",
+                    "-b:a",
+                    "192k",
+                    output_path,
+                ],
+                check=True,
+                capture_output=True,
             )
             return output_path
         finally:
             shutil.rmtree(tmp_dir, ignore_errors=True)
 
-    def _ffmpeg_effect(self, output_path: str, effect_id: str, params: Optional[Dict] = None) -> str:
+    def _ffmpeg_effect(
+        self, output_path: str, effect_id: str, params: Optional[Dict] = None
+    ) -> str:
         """Apply effects purely via FFmpeg filter_complex."""
         params = params or {}
         vf_filters: List[str] = []
 
         if effect_id == "color_grade_warm":
             temp = params.get("temperature", 30)
-            vf_filters.append(f"colorbalance=rs={temp/200}:gs=0:bs=-{temp/300}")
+            vf_filters.append(f"colorbalance=rs={temp / 200}:gs=0:bs=-{temp / 300}")
         elif effect_id == "color_grade_cool":
             temp = abs(params.get("temperature", 30))
-            vf_filters.append(f"colorbalance=rs=-{temp/300}:gs=0:bs={temp/200}")
+            vf_filters.append(f"colorbalance=rs=-{temp / 300}:gs=0:bs={temp / 200}")
         elif effect_id == "high_contrast":
             contrast = params.get("contrast", 1.4)
             vf_filters.append(f"eq=contrast={contrast}")
         elif effect_id == "speed_ramp":
             factor = params.get("fast_factor", 1.5)
-            vf_filters.append(f"setpts={1/factor}*PTS")
+            vf_filters.append(f"setpts={1 / factor}*PTS")
         elif effect_id == "zoom_in":
             scale = params.get("scale", 1.3)
             vf_filters.append(f"scale=iw*{scale}:ih*{scale},crop=iw/{scale}:ih/{scale}")
@@ -458,10 +655,18 @@ class MoviePyEngine:
 
         vf = ",".join(vf_filters)
         cmd = [
-            "ffmpeg", "-y", "-i", self.video_path,
-            "-vf", vf,
-            "-c:v", "libx264", "-preset", "fast",
-            "-c:a", "copy",
+            "ffmpeg",
+            "-y",
+            "-i",
+            self.video_path,
+            "-vf",
+            vf,
+            "-c:v",
+            "libx264",
+            "-preset",
+            "fast",
+            "-c:a",
+            "copy",
             output_path,
         ]
         try:
@@ -475,9 +680,19 @@ class MoviePyEngine:
     def _probe_duration(self) -> float:
         try:
             result = subprocess.run(
-                ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-                 "-of", "default=noprint_wrappers=1:nokey=1", self.video_path],
-                capture_output=True, text=True, check=True,
+                [
+                    "ffprobe",
+                    "-v",
+                    "error",
+                    "-show_entries",
+                    "format=duration",
+                    "-of",
+                    "default=noprint_wrappers=1:nokey=1",
+                    self.video_path,
+                ],
+                capture_output=True,
+                text=True,
+                check=True,
             )
             return float(result.stdout.strip())
         except Exception:
@@ -488,6 +703,7 @@ class MoviePyEngine:
 # MoviePyAudioEngine
 # ---------------------------------------------------------------------------
 
+
 class MoviePyAudioEngine:
     """High-level audio editing engine for MoviePy 2.x."""
 
@@ -497,30 +713,42 @@ class MoviePyAudioEngine:
         if MOVIEPY_AVAILABLE:
             try:
                 self._clip = AudioFileClip(audio_path)
-                logger.info(f"🎵 MoviePyAudioEngine loaded: {audio_path} ({self._clip.duration:.1f}s)")
+                logger.info(
+                    f"🎵 MoviePyAudioEngine loaded: {audio_path} ({self._clip.duration:.1f}s)"
+                )
             except Exception as exc:
                 logger.warning(f"⚠️  Could not load audio ({exc})")
 
-    def __enter__(self): return self
-    def __exit__(self, *_): self.close()
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        self.close()
 
     def close(self):
         if self._clip is not None:
-            try: self._clip.close()
-            except Exception: pass
+            try:
+                self._clip.close()
+            except Exception:
+                pass
             self._clip = None
 
     @property
     def duration(self) -> float:
         return self._clip.duration if self._clip is not None else 0.0
 
-    def add_fade(self, output_path: str, fade_in: float = 1.0, fade_out: float = 2.0) -> str:
+    def add_fade(
+        self, output_path: str, fade_in: float = 1.0, fade_out: float = 2.0
+    ) -> str:
         if self._clip is not None and _AudioFadeIn and _AudioFadeOut:
             try:
-                clip = _apply_effects(self._clip, [
-                    _make_effect(_AudioFadeIn, fade_in),
-                    _make_effect(_AudioFadeOut, fade_out),
-                ])
+                clip = _apply_effects(
+                    self._clip,
+                    [
+                        _make_effect(_AudioFadeIn, fade_in),
+                        _make_effect(_AudioFadeOut, fade_out),
+                    ],
+                )
                 _write_audiofile(clip, output_path)
                 logger.info(f"🎵 Audio fade → {output_path}")
                 return output_path
@@ -543,7 +771,9 @@ class MoviePyAudioEngine:
         if self._clip is None or _AudioLoop is None:
             return None
         try:
-            return _apply_effects(self._clip, [_make_effect(_AudioLoop, duration=target_duration)])
+            return _apply_effects(
+                self._clip, [_make_effect(_AudioLoop, duration=target_duration)]
+            )
         except Exception as exc:
             logger.warning(f"⚠️  Audio loop failed: {exc}")
             return None
@@ -562,36 +792,54 @@ class MoviePyAudioEngine:
         if MOVIEPY_AVAILABLE and self._clip is not None:
             try:
                 return self._moviepy_mix(
-                    video_path, output_path, speech_segments or [],
-                    bg_volume, duck_volume, fade_in, fade_out, is_preview,
+                    video_path,
+                    output_path,
+                    speech_segments or [],
+                    bg_volume,
+                    duck_volume,
+                    fade_in,
+                    fade_out,
+                    is_preview,
                 )
             except Exception as exc:
                 logger.warning(f"⚠️  MoviePy mix failed ({exc}); FFmpeg fallback")
         return self._ffmpeg_mix(
-            video_path, output_path, speech_segments or [],
-            bg_volume, is_preview, duck_volume=duck_volume,
+            video_path,
+            output_path,
+            speech_segments or [],
+            bg_volume,
+            is_preview,
+            duck_volume=duck_volume,
         )
 
     def _moviepy_mix(
-        self, video_path: str, output_path: str,
-        speech_segments: List[Dict], bg_volume: float, duck_volume: float,
-        fade_in: float, fade_out: float, is_preview: bool,
+        self,
+        video_path: str,
+        output_path: str,
+        speech_segments: List[Dict],
+        bg_volume: float,
+        duck_volume: float,
+        fade_in: float,
+        fade_out: float,
+        is_preview: bool,
     ) -> str:
         video_clip = VideoFileClip(video_path)
         if is_preview:
             video_clip = video_clip.subclipped(0, min(15, video_clip.duration))
             if _Resize:
                 new_w = int(video_clip.w * 480 / video_clip.h)
-                video_clip = _apply_effects(video_clip, [
-                    _make_effect(_Resize, newsize=(new_w, 480))
-                ])
+                video_clip = _apply_effects(
+                    video_clip, [_make_effect(_Resize, newsize=(new_w, 480))]
+                )
 
         vduration = video_clip.duration
         music = self._clip
 
         if music.duration < vduration and _AudioLoop:
             try:
-                music = _apply_effects(music, [_make_effect(_AudioLoop, duration=vduration)])
+                music = _apply_effects(
+                    music, [_make_effect(_AudioLoop, duration=vduration)]
+                )
             except Exception:
                 music = music.subclipped(0, min(music.duration, vduration))
         else:
@@ -615,6 +863,7 @@ class MoviePyAudioEngine:
                             return lo + ((t - e) / 0.3) * (hi - lo)
                         return lo
                 return hi
+
             return vol_fn
 
         if speech_segments:
@@ -625,19 +874,32 @@ class MoviePyAudioEngine:
 
         final_audio = (
             CompositeAudioClip([video_clip.audio, music])
-            if video_clip.audio is not None else music
+            if video_clip.audio is not None
+            else music
         )
         final_video = video_clip.with_audio(final_audio)
-        _write_videofile(final_video, output_path, preset="ultrafast" if is_preview else "medium")
+        _write_videofile(
+            final_video, output_path, preset="ultrafast" if is_preview else "medium"
+        )
         video_clip.close()
         logger.info(f"🎬 MoviePy mix with ducking → {output_path}")
         return output_path
 
-    def _ffmpeg_mix(self, video_path, output_path, speech_segments, bg_volume, is_preview, duck_volume=0.08):
+    def _ffmpeg_mix(
+        self,
+        video_path,
+        output_path,
+        speech_segments,
+        bg_volume,
+        is_preview,
+        duck_volume=0.08,
+    ):
         duration_flag = ["-t", "15"] if is_preview else []
 
         if speech_segments:
-            ducks = "+".join(f"between(t,{s['start']},{s['end']})" for s in speech_segments)
+            ducks = "+".join(
+                f"between(t,{s['start']},{s['end']})" for s in speech_segments
+            )
             volume_filter = f"volume='if({ducks}, {round(duck_volume, 10)}, {bg_volume})':eval=frame"
         else:
             volume_filter = f"volume={bg_volume}"
@@ -647,14 +909,27 @@ class MoviePyAudioEngine:
             f"[0:a][mus]amix=inputs=2:duration=first:dropout_transition=2[aout]"
         )
         cmd = [
-            "ffmpeg", "-y",
-            "-i", video_path,
-            "-stream_loop", "-1", "-i", self.audio_path,
-            "-filter_complex", filter_complex,
-            "-map", "0:v", "-map", "[aout]",
-            "-c:v", "libx264",
-            "-preset", "ultrafast" if is_preview else "medium",
-            "-c:a", "aac", "-shortest",
+            "ffmpeg",
+            "-y",
+            "-i",
+            video_path,
+            "-stream_loop",
+            "-1",
+            "-i",
+            self.audio_path,
+            "-filter_complex",
+            filter_complex,
+            "-map",
+            "0:v",
+            "-map",
+            "[aout]",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "ultrafast" if is_preview else "medium",
+            "-c:a",
+            "aac",
+            "-shortest",
         ] + duration_flag
         if is_preview:
             cmd += ["-vf", "scale=-2:480"]
@@ -667,10 +942,17 @@ class MoviePyAudioEngine:
         try:
             fade_out_start = max(0, self.duration - fade_out)
             subprocess.run(
-                ["ffmpeg", "-y", "-i", self.audio_path, "-af",
-                 f"afade=t=in:st=0:d={fade_in},afade=t=out:st={fade_out_start}:d={fade_out}",
-                 output_path],
-                check=True, capture_output=True,
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-i",
+                    self.audio_path,
+                    "-af",
+                    f"afade=t=in:st=0:d={fade_in},afade=t=out:st={fade_out_start}:d={fade_out}",
+                    output_path,
+                ],
+                check=True,
+                capture_output=True,
             )
             return output_path
         except Exception as exc:
@@ -680,8 +962,20 @@ class MoviePyAudioEngine:
 
     def _ffmpeg_audio_trim(self, start, end, output_path):
         subprocess.run(
-            ["ffmpeg", "-y", "-i", self.audio_path,
-             "-ss", str(start), "-to", str(end), "-c", "copy", output_path],
-            check=True, capture_output=True,
+            [
+                "ffmpeg",
+                "-y",
+                "-i",
+                self.audio_path,
+                "-ss",
+                str(start),
+                "-to",
+                str(end),
+                "-c",
+                "copy",
+                output_path,
+            ],
+            check=True,
+            capture_output=True,
         )
         return output_path

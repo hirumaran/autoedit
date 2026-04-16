@@ -358,40 +358,69 @@ async def render_video(req: RenderRequest):
                         cuts = sorted(
                             req.custom_segments, key=lambda s: s.get("start", 0)
                         )
+                        # Build list of surviving (kept) time ranges
+                        kept_ranges = []
+                        cursor = 0.0
+                        for cut in cuts:
+                            cs = float(cut.get("start", 0))
+                            ce = float(cut.get("end", 0))
+                            if cs > cursor:
+                                kept_ranges.append((cursor, cs))
+                            cursor = max(cursor, ce)
+                        if cursor < duration:
+                            kept_ranges.append((cursor, duration))
+
+                        # For each subtitle, clip it against kept ranges
+                        # and shift timestamps to remove cut gaps
                         adjusted = []
                         for seg in subtitle_segments:
-                            seg_start = seg.get("start", 0)
-                            seg_end = seg.get("end", 0)
-                            # Calculate total cut duration before this segment
-                            offset = 0.0
-                            for cut in cuts:
-                                cut_start = float(cut.get("start", 0))
-                                cut_end = float(cut.get("end", 0))
-                                if cut_end <= seg_start:
-                                    # Entire cut is before this segment
-                                    offset += cut_end - cut_start
-                                elif cut_start < seg_end:
-                                    # Cut overlaps this segment — skip subtitle
-                                    offset = -1
-                                    break
-                            if offset >= 0:
+                            seg_start = float(seg.get("start", 0))
+                            seg_end = float(seg.get("end", 0))
+                            for kstart, kend in kept_ranges:
+                                # Find overlap between subtitle and this kept range
+                                ov_start = max(seg_start, kstart)
+                                ov_end = min(seg_end, kend)
+                                if ov_start >= ov_end:
+                                    continue
+                                # Calculate offset: total cut duration before kstart
+                                offset = 0.0
+                                for c in cuts:
+                                    c_start = float(c.get("start", 0))
+                                    c_end = float(c.get("end", 0))
+                                    if c_end <= kstart:
+                                        offset += c_end - c_start
                                 new_seg = dict(seg)
-                                new_seg["start"] = max(0, seg_start - offset)
-                                new_seg["end"] = max(0, seg_end - offset)
+                                new_seg["start"] = max(0, ov_start - offset)
+                                new_seg["end"] = max(0, ov_end - offset)
                                 if new_seg["end"] > new_seg["start"]:
                                     adjusted.append(new_seg)
-                        subtitle_segments = adjusted
+                        # Drop tiny fragments created by boundary clipping
+                        # (e.g., 0.02s subtitles are effectively invisible).
+                        subtitle_segments = [
+                            s
+                            for s in adjusted
+                            if float(s.get("end", 0)) - float(s.get("start", 0)) >= 0.2
+                        ]
                         logger.info(
                             f"📝 Adjusted {len(subtitle_segments)} subtitle segments for cuts"
                         )
+                        if subtitle_segments:
+                            preview = ", ".join(
+                                f"{float(s.get('start', 0)):.2f}-{float(s.get('end', 0)):.2f}:{(s.get('text', '') or '').strip()[:20]}"
+                                for s in subtitle_segments[:3]
+                            )
+                            logger.info(f"📝 Subtitle timeline preview: {preview}")
 
                     sub_output = _output_path()
                     vp = VideoProcessor(current_path)
+                    info = vp.get_video_info()
                     vp.add_subtitles(
                         subtitle_file="",
                         output_path=sub_output,
                         style_preset=req.style_preset or "sleek",
                         subtitle_data=subtitle_segments,
+                        video_width=info.get("width", 1080),
+                        video_height=info.get("height", 1920),
                     )
                     current_path = sub_output
                     logger.info(f"📝 Subtitles done: {current_path}")

@@ -11,10 +11,11 @@ except Exception:  # pragma: no cover
 
 # MoviePy engine — provides clean Python API over FFmpeg
 try:
-    from editing_engine import MoviePyEngine, MoviePyAudioEngine  # type: ignore
+    from backend.editing_engine import MoviePyEngine, MoviePyAudioEngine  # type: ignore
 
     _MOVIEPY_ENGINE_AVAILABLE = True
-except ImportError:
+except ImportError as e:
+    print(f"⚠️ MoviePyEngine failed to load: {e}")
     _MOVIEPY_ENGINE_AVAILABLE = False
 
 SUBTITLE_STYLE_MAP = {
@@ -79,7 +80,7 @@ SUBTITLE_STYLE_MAP = {
         "Bold": "-1",
     },
     "sleek": {
-        "FontName": "SF Pro Display",
+        "FontName": "Arial",
         "FontSize": "40",
         "PrimaryColour": "&H00FFFFFF",
         "OutlineColour": "&H66000000",
@@ -371,7 +372,7 @@ class VideoProcessor:
             except Exception as e:
                 print(f"⚠️ MoviePy trim failed ({e}); using FFmpeg fallback")
 
-        # --- FFmpeg fallback (fast stream copy, no re-encode) ---
+        # --- FFmpeg fallback (re-encode for frame-accurate cuts) ---
         try:
             cmd = [
                 "ffmpeg",
@@ -382,8 +383,18 @@ class VideoProcessor:
                 self.video_path,
                 "-t",
                 str(end - start),
-                "-c",
-                "copy",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "fast",
+                "-crf",
+                "18",
+                "-c:a",
+                "aac",
+                "-b:a",
+                "192k",
+                "-avoid_negative_ts",
+                "make_zero",
                 output_path,
             ]
             subprocess.run(cmd, check=True, capture_output=True)
@@ -403,34 +414,63 @@ class VideoProcessor:
         video_width: int = 1080,
         video_height: int = 1920,
     ):
-        """Burn subtitles into video using FFmpeg."""
+        """Burn subtitles into video.
 
-        # --- If we have subtitle data but no file, generate an SRT ---
-        if subtitle_data and not subtitle_file:
-            subtitle_file = self._generate_srt(subtitle_data)
+        Prefer MoviePy text rendering when available (works even if ffmpeg build
+        lacks libass/subtitles filters). Fall back to FFmpeg ASS burn.
+        """
+        import shutil
 
-        if not subtitle_file or not Path(subtitle_file).exists():
-            print(f"❌ No subtitle file available")
-            import shutil
+        style = style or SUBTITLE_STYLE_MAP.get(
+            style_preset, SUBTITLE_STYLE_MAP.get("minimal")
+        )
 
-            shutil.copy(self.video_path, output_path)
-            return output_path
+        # --- MoviePy path (primary) ---
+        if _MOVIEPY_ENGINE_AVAILABLE and subtitle_data:
+            try:
+                with MoviePyEngine(self.video_path) as engine:
+                    engine.add_subtitles(
+                        subtitle_data=subtitle_data,
+                        output_path=output_path,
+                        style_preset=style_preset,
+                        video_width=video_width,
+                        video_height=video_height,
+                    )
+                print(f"💬 Added subtitles via MoviePy ({len(subtitle_data)} segments)")
+                return output_path
+            except Exception as e:
+                print(f"⚠️ MoviePy subtitles failed ({e}); trying FFmpeg fallback")
 
         # --- FFmpeg subtitle burn ---
         try:
-            # Use absolute path and escape for FFmpeg subtitles filter
-            srt_path = str(Path(subtitle_file).resolve())
-            # Escape special characters for FFmpeg filter
-            srt_escaped = srt_path.replace("\\", "/").replace(":", "\\:")
+            # Generate ASS file with style baked in (avoids force_style quoting issues)
+            ass_path = self._generate_ass(subtitle_data or [], style)
+            if not ass_path or not Path(ass_path).exists():
+                shutil.copy(self.video_path, output_path)
+                return output_path
 
-            style = style or SUBTITLE_STYLE_MAP.get(
-                style_preset, SUBTITLE_STYLE_MAP.get("minimal")
+            # Copy to /tmp to avoid colons in macOS temp paths
+            safe_ass = f"/tmp/ass_{Path(self.video_path).stem}.ass"
+            shutil.copy2(ass_path, safe_ass)
+
+            # Simple escape for spaces, colons, and backslashes (FFmpeg filter syntax)
+            escaped = safe_ass.replace("\\", "\\\\").replace(":", "\\:")
+            # NOTE: many ffmpeg builds (like Homebrew default) do not include
+            # `subtitles`/`ass` filters. We probe availability and fail soft.
+            probe = subprocess.run(
+                ["ffmpeg", "-hide_banner", "-filters"],
+                capture_output=True,
+                text=True,
             )
-            style_parts = [f"{key}={value}" for key, value in style.items()]
-            force_style = ",".join(style_parts)
-
-            vf = f"subtitles='{srt_escaped}':force_style='{force_style}'"
-
+            filters_text = (probe.stdout or "") + (probe.stderr or "")
+            if " subtitles " in filters_text:
+                vf = f"subtitles={escaped}"
+            elif " ass " in filters_text:
+                vf = f"ass={escaped}"
+            else:
+                print("⚠️ FFmpeg build lacks subtitles/ass filters; copying source")
+                shutil.copy(self.video_path, output_path)
+                return output_path
             cmd = [
                 "ffmpeg",
                 "-y",
@@ -446,53 +486,77 @@ class VideoProcessor:
             result = subprocess.run(cmd, capture_output=True, text=True)
             if result.returncode != 0:
                 print(f"❌ FFmpeg subtitle error: {result.stderr[-500:]}")
-                # Fallback: try without escaping
-                vf2 = f"subtitles={srt_path}:force_style='{force_style}'"
-                cmd2 = [
-                    "ffmpeg",
-                    "-y",
-                    "-i",
-                    self.video_path,
-                    "-vf",
-                    vf2,
-                    "-c:a",
-                    "copy",
-                    output_path,
-                ]
-                subprocess.run(cmd2, check=True, capture_output=True)
-            print(f"💬 Added subtitles from {subtitle_file}")
+                shutil.copy(self.video_path, output_path)
+                return output_path
+            print(f"💬 Added subtitles from {ass_path}")
             return output_path
         except Exception as e:
             print(f"❌ Subtitle addition failed: {e}")
-            import shutil
-
             shutil.copy(self.video_path, output_path)
             return output_path
 
-    def _generate_srt(self, subtitle_data: List[Dict]) -> str:
-        """Generate an SRT file from subtitle segment data."""
+    def _generate_ass(self, subtitle_data: List[Dict], style: Dict) -> str:
+        """Generate an ASS file with styles baked into the header."""
         import tempfile
 
-        def format_time(seconds: float) -> str:
+        def _ass_time(seconds: float) -> str:
             h = int(seconds // 3600)
             m = int((seconds % 3600) // 60)
             s = int(seconds % 60)
-            ms = int((seconds % 1) * 1000)
-            return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
+            cs = int(round((seconds % 1) * 100))
+            return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
 
-        srt_path = str(
-            Path(tempfile.gettempdir()) / f"subs_{Path(self.video_path).stem}.srt"
+        primary = style.get("PrimaryColour", "&H00FFFFFF")
+        outline = style.get("OutlineColour", "&H00000000")
+        font_name = style.get("FontName", "Arial")
+        font_size = style.get("FontSize", "24")
+        bold = style.get("Bold", "0")
+        outline_w = style.get("Outline", "2")
+        shadow = style.get("Shadow", "1")
+        alignment = style.get("Alignment", "2")
+        margin_v = style.get("MarginV", "30")
+        border_style = style.get("BorderStyle", "3")
+
+        header = (
+            "[Script Info]\n"
+            "Title: Subtitles\n"
+            "ScriptType: v4.00+\n"
+            "WrapStyle: 0\n"
+            "PlayResX: 1080\n"
+            "PlayResY: 1920\n"
+            "\n"
+            "[V4+ Styles]\n"
+            "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, "
+            "OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, "
+            "ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, "
+            "Alignment, MarginL, MarginR, MarginV, Encoding\n"
+            f"Style: Default,{font_name},{font_size},{primary},&H000000FF,"
+            f"{outline},&H00000000,{bold},0,0,0,100,100,0,0,"
+            f"{border_style},{outline_w},{shadow},{alignment},10,10,{margin_v},1\n"
+            "\n"
+            "[Events]\n"
+            "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
         )
-        with open(srt_path, "w", encoding="utf-8") as f:
-            for i, seg in enumerate(subtitle_data, 1):
-                text = seg.get("text", "").strip()
-                if not text:
-                    continue
-                start = format_time(seg.get("start", 0))
-                end = format_time(seg.get("end", 0))
-                f.write(f"{i}\n{start} --> {end}\n{text}\n\n")
-        print(f"📝 Generated SRT: {srt_path}")
-        return srt_path
+
+        body = ""
+        for seg in subtitle_data:
+            text = seg.get("text", "").strip()
+            if not text:
+                continue
+            start = _ass_time(float(seg.get("start", 0)))
+            end = _ass_time(float(seg.get("end", 0)))
+            body += f"Dialogue: 0,{start},{end},Default,,0,0,0,,{text}\n"
+
+        if not body:
+            return ""
+
+        ass_path = str(
+            Path(tempfile.gettempdir()) / f"subs_{Path(self.video_path).stem}.ass"
+        )
+        with open(ass_path, "w", encoding="utf-8-sig") as f:
+            f.write(header + body)
+        print(f"📝 Generated ASS: {ass_path}")
+        return ass_path
 
     def add_overlay(self, overlay_image: str, position: str, output_path: str):
         """Add logo/watermark overlay.
@@ -511,7 +575,16 @@ class VideoProcessor:
         # --- MoviePy path ---
         if _MOVIEPY_ENGINE_AVAILABLE:
             try:
-                from moviepy.editor import VideoFileClip, ImageClip, CompositeVideoClip  # type: ignore
+                try:
+                    # MoviePy v1.x
+                    from moviepy.editor import (
+                        VideoFileClip,
+                        ImageClip,
+                        CompositeVideoClip,
+                    )  # type: ignore
+                except ImportError:
+                    # MoviePy v2.x
+                    from moviepy import VideoFileClip, ImageClip, CompositeVideoClip  # type: ignore
 
                 base = VideoFileClip(self.video_path)
                 logo = ImageClip(overlay_image).set_duration(base.duration)

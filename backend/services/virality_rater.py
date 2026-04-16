@@ -4,14 +4,13 @@ import random
 from typing import Dict, List, Any
 from .trend_fetcher import TrendFetcher
 
-# Set HuggingFace mirror for school networks
-if not os.environ.get("HF_ENDPOINT"):
-    os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
-os.environ["CURL_CA_BUNDLE"] = ""
-
-# Try to import sentence_transformers, but allow fallback
-TRANSFORMER_AVAILABLE = False
-print("⚠️ sentence-transformers not available. Virality scoring will be heuristic.")
+try:
+    from sentence_transformers import SentenceTransformer
+    from sklearn.metrics.pairwise import cosine_similarity
+    TRANSFORMER_AVAILABLE = True
+except ImportError:
+    TRANSFORMER_AVAILABLE = False
+    print("⚠️ sentence-transformers not available. Virality scoring will be heuristic.")
 
 logger = logging.getLogger(__name__)
 
