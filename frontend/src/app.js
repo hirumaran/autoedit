@@ -19,16 +19,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const resetBtn = document.getElementById('reset-btn');
     const captionOverlay = document.getElementById('caption-overlay');
     const promptSearch = document.getElementById('prompt-search');
-    const manualPrompt = document.getElementById('manual-prompt');
-    const manualTranscript = document.getElementById('manual-transcript');
-    const rerunPromptBtn = document.getElementById('rerun-prompt-btn');
-    const rerunTranscriptBtn = document.getElementById('rerun-transcript-btn');
-    const loadTranscriptBtn = document.getElementById('load-transcript-btn');
-    const revertBtn = document.getElementById('revert-btn');
-    const rerunSpinner = document.getElementById('rerun-spinner');
-    const rerunStatus = document.getElementById('rerun-status');
-    const manualCuts = document.getElementById('manual-cuts');
-    const rerunCutsBtn = document.getElementById('rerun-cuts-btn');
     const errorText = document.getElementById('error-text');
 
     // --- State ---
@@ -506,72 +496,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Manual rerun with prompt
-    if (rerunPromptBtn) {
-        rerunPromptBtn.addEventListener('click', async () => {
-            if (!currentVideoId) return;
-            const promptText = (manualPrompt?.value || promptSearch?.value || '').trim();
-            await reprocessWithParams({ user_prompt: promptText });
-        });
-    }
-
-    // Manual rerun with transcript
-    if (rerunTranscriptBtn) {
-        rerunTranscriptBtn.addEventListener('click', async () => {
-            if (!currentVideoId) return;
-            const transcriptText = (manualTranscript?.value || '').trim();
-            if (!transcriptText) {
-                if (errorText) {
-                    errorText.classList.remove('hidden');
-                    errorText.innerText = 'Provide an edited transcript before re-running.';
-                }
-                return;
-            }
-            await reprocessWithParams({ manual_transcript: transcriptText });
-        });
-    }
-
-    if (loadTranscriptBtn) {
-        loadTranscriptBtn.addEventListener('click', () => {
-            if (manualTranscript && lastTranscript) {
-                manualTranscript.value = lastTranscript;
-            }
-        });
-    }
-
-    if (revertBtn) {
-        revertBtn.addEventListener('click', () => {
-            const defaultPrompt = 'Make this video engaging for social media';
-            if (promptSearch) promptSearch.value = defaultPrompt;
-            if (manualPrompt) manualPrompt.value = defaultPrompt;
-            if (manualTranscript) manualTranscript.value = '';
-            if (manualCuts) manualCuts.value = '';
-            lastPrompt = defaultPrompt;
-        });
-    }
-
-    // Manual cuts re-run
-    if (rerunCutsBtn) {
-        rerunCutsBtn.addEventListener('click', async () => {
-            if (!currentVideoId) return;
-            const segments = parseCuts(manualCuts?.value || '');
-            if (!segments.length) {
-                if (errorText) {
-                    errorText.classList.remove('hidden');
-                    errorText.innerText = 'Add at least one cut (format: start-end per line).';
-                }
-                return;
-            }
-            await reprocessWithParams(
-                {
-                    custom_segments: segments,
-                    trim_boring_parts: false
-                },
-                { keepPrompt: true }
-            );
-        });
-    }
-
     // Video Time Update for Subtitles
     if (resultVideo) {
         resultVideo.addEventListener('timeupdate', () => {
@@ -853,7 +777,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Wait, render_video_pipeline: "if valid_custom_segments... else ... if not applied_ranges: keep full"
             // So if we send empty list, it keeps full video. Correct.
 
-            const finalSegments = removeRanges;
+            const finalSegments = removeRanges.length > 0 ? keepSegments : [];
 
             // Gather params
             const transcript = reviewTranscript.value;
@@ -985,61 +909,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 b.classList.remove(...styleButtonClasses.inactive);
             }
         });
-    }
-
-    async function reprocessWithParams(extraParams = {}, options = {}) {
-        if (!currentVideoId) return;
-
-        // Show inline rerun state and keep result visible
-        if (rerunSpinner) rerunSpinner.classList.remove('hidden');
-        if (rerunStatus) {
-            rerunStatus.classList.remove('hidden');
-            rerunStatus.innerText = 'Re-running with your changes...';
-        }
-        processingContainer.classList.add('hidden');
-        resultContainer.classList.remove('hidden');
-        updateProgress(5, 'QUEUED...');
-        if (errorText) {
-            errorText.classList.add('hidden');
-            errorText.innerText = '';
-        }
-
-        const trimBoring = document.getElementById('trim-toggle').checked;
-        const burnSubs = document.getElementById('burn-subs-toggle').checked;
-        const promptText = (manualPrompt?.value || promptSearch?.value || '').trim() || lastPrompt;
-        lastPrompt = promptText || lastPrompt;
-
-        const payload = {
-            video_id: currentVideoId,
-            style_preset: selectedStyle,
-            add_subtitles: burnSubs,
-            trim_boring_parts: trimBoring,
-            user_prompt: options.keepPrompt === false ? undefined : (promptText || undefined),
-            ...extraParams
-        };
-
-        try {
-            const res = await fetch('/api/process', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const data = await res.json();
-            if (!data.success) throw new Error(data.message);
-            pollStatus(currentVideoId);
-        } catch (err) {
-            console.error(err);
-            if (errorText) {
-                errorText.classList.remove('hidden');
-                errorText.innerText = `Error: ${err.message}`;
-            }
-        } finally {
-            if (rerunSpinner) rerunSpinner.classList.add('hidden');
-            if (rerunStatus) {
-                rerunStatus.classList.add('hidden');
-                rerunStatus.innerText = '';
-            }
-        }
     }
 
     function parseCuts(text) {
@@ -1216,7 +1085,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     async function loadRecommendedMusic() {
-        const promptText = (manualPrompt?.value || promptSearch?.value || '').trim();
+        const promptText = (promptSearch?.value || '').trim();
         searchMusic(promptText || "trending tiktok viral");
     }
 

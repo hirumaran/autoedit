@@ -91,6 +91,7 @@
             }
         }
     </script>
+  <script type="module" crossorigin src="/assets/index-5CzdsIsG.js"></script>
 </head>
 
 <body class="min-h-screen bg-[#050505] text-[#ededed] overflow-x-hidden relative">
@@ -301,7 +302,7 @@
                                 <div class="text-xs text-gray-500 mt-1">Permanently embed into video file</div>
                             </div>
                             <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="burn-subs-toggle" class="sr-only peer" checked>
+                                <input type="checkbox" id="burn-subs-toggle" class="sr-only peer">
                                 <div
                                     class="w-11 h-6 bg-[#222] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#F4E04D]">
                                 </div>
@@ -629,61 +630,6 @@
                         <i data-lucide="refresh-cw" class="w-4 h-4 mr-2"></i> Distort Again
                     </button>
                 </div>
-                <!-- Manual Controls -->
-                <div class="mt-6 border border-[#333] rounded-xl p-4 bg-[#0a0a0a] space-y-3">
-                    <div class="flex items-center justify-between">
-                        <div class="font-mono text-sm font-bold text-[#F4E04D]">Manual Overrides</div>
-                        <div class="text-[10px] text-gray-500">Re-run without re-uploading</div>
-                    </div>
-                    <div class="space-y-2">
-                        <label class="text-xs text-gray-400 font-mono">Prompt</label>
-                        <input id="manual-prompt"
-                            class="w-full rounded-lg border border-[#222] bg-[#0d0d0d] px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-[#F4E04D]"
-                            placeholder="Edit prompt and re-run..." />
-                        <div class="flex gap-2">
-                            <button id="rerun-prompt-btn"
-                                class="flex-1 bg-[#F4E04D] text-black font-bold py-2 px-3 rounded hover:bg-white transition-colors text-xs font-mono">
-                                Re-run with prompt
-                            </button>
-                            <button id="revert-btn"
-                                class="px-3 py-2 border border-[#444] rounded text-xs text-gray-300 hover:bg-[#111]">
-                                Revert prompt
-                            </button>
-                        </div>
-                    </div>
-                    <div class="space-y-2">
-                        <label class="text-xs text-gray-400 font-mono flex items-center justify-between">
-                            <span>Transcript (edit to fix captions)</span>
-                            <button id="load-transcript-btn"
-                                class="text-[10px] px-2 py-1 border border-[#333] rounded text-gray-300 hover:bg-[#111]">
-                                Load current
-                            </button>
-                        </label>
-                        <textarea id="manual-transcript"
-                            class="w-full rounded-lg border border-[#222] bg-[#0d0d0d] px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-[#F4E04D]"
-                            rows="4" placeholder="Edit transcript text here before re-running..."></textarea>
-                        <button id="rerun-transcript-btn"
-                            class="w-full bg-[#111] border border-[#F4E04D] text-[#F4E04D] font-bold py-2 px-3 rounded hover:bg-[#F4E04D]/10 transition-colors text-xs font-mono">
-                            Re-run with edited transcript
-                        </button>
-                        <div class="flex items-center gap-2 text-[11px] text-gray-500">
-                            <div id="rerun-spinner"
-                                class="hidden w-4 h-4 border-2 border-[#F4E04D] border-t-transparent rounded-full animate-spin">
-                            </div>
-                            <span id="rerun-status" class="hidden"></span>
-                        </div>
-                    </div>
-                    <div class="space-y-2">
-                        <label class="text-xs text-gray-400 font-mono">Manual cuts (start-end per line, seconds)</label>
-                        <textarea id="manual-cuts"
-                            class="w-full rounded-lg border border-[#222] bg-[#0d0d0d] px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-[#F4E04D]"
-                            rows="3" placeholder="e.g. 0-5&#10;12.5-18"></textarea>
-                        <button id="rerun-cuts-btn"
-                            class="w-full bg-[#0b0b0b] border border-[#333] text-gray-200 font-bold py-2 px-3 rounded hover:bg-[#111] transition-colors text-xs font-mono">
-                            Apply cuts & re-run
-                        </button>
-                    </div>
-                </div>
             </div>
 
         </div>
@@ -920,7 +866,6 @@
         </div>
     </div>
 
-    <script src="app.js"></script>
 </body>
 
 </html>

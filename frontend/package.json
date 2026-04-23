@@ -4,16 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "npx vite",
-    "build": "npx vite build",
-    "preview": "npx vite preview"
-  },
-  "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check-build": "bash check-build.sh"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.2.0",
     "vite": "^5.0.0"
   }
 }
