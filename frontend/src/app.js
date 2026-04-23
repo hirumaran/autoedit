@@ -68,8 +68,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // === Platform + Format Selection ===
     const platformBtnClasses = {
-        active: ['active', 'border-[#F4E04D]', 'bg-[#F4E04D]/10', 'text-[#F4E04D]'],
-        inactive: ['border-[#333]', 'bg-[#0a0a0a]', 'text-gray-400']
+        active: ['active', 'bg-[color:var(--text-primary)]', 'text-black'],
+        inactive: ['text-[color:var(--text-secondary)]', 'hover:text-white']
     };
 
     document.querySelectorAll('.platform-btn').forEach(btn => {
@@ -83,17 +83,21 @@ document.addEventListener('DOMContentLoaded', () => {
             selectedPlatform = btn.dataset.platform;
             selectedAspect = btn.dataset.aspect;
             selectedRes = btn.dataset.res;
+            const platformAspectMeta = document.getElementById('platform-aspect-meta');
+            if (platformAspectMeta) {
+                platformAspectMeta.textContent = `${selectedAspect} · ${selectedRes.replace('x', '×')}`;
+            }
         });
     });
 
     document.querySelectorAll('.format-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.format-btn').forEach(b => {
-                b.classList.remove('active', 'bg-[#F4E04D]', 'text-black');
-                b.classList.add('bg-[#0a0a0a]', 'text-gray-400');
+                b.classList.remove('active', 'bg-[color:var(--text-primary)]', 'text-black');
+                b.classList.add('text-[color:var(--text-secondary)]', 'hover:text-white');
             });
-            btn.classList.remove('bg-[#0a0a0a]', 'text-gray-400');
-            btn.classList.add('active', 'bg-[#F4E04D]', 'text-black');
+            btn.classList.remove('text-[color:var(--text-secondary)]', 'hover:text-white');
+            btn.classList.add('active', 'bg-[color:var(--text-primary)]', 'text-black');
             selectedFormat = btn.dataset.format;
             const hint = document.getElementById('format-hint');
             if (hint) {

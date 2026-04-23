@@ -91,7 +91,7 @@
             }
         }
     </script>
-  <script type="module" crossorigin src="/assets/index-5CzdsIsG.js"></script>
+  <script type="module" crossorigin src="/assets/index-D7Uqt58E.js"></script>
 </head>
 
 <body class="min-h-screen bg-[#050505] text-[#ededed] overflow-x-hidden relative">
@@ -111,112 +111,50 @@
         </div>
     </div>
 
-    <!-- Header -->
-    <header class="fixed top-0 left-0 right-0 z-40 border-b border-[#333] bg-[#050505]/80 backdrop-blur-md">
-        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-            <div class="flex items-center gap-2">
-                <button id="cipher-triangle-btn" class="hover:scale-110 transition-transform cursor-pointer">
-                    <i data-lucide="triangle" class="text-[#F4E04D] fill-[#F4E04D] w-5 h-5"></i>
-                </button>
-                <span class="font-bold tracking-wider text-lg">
-                    CIPHER <span class="text-[#F4E04D]">EDIT</span>
-                </span>
-            </div>
-            <div class="flex items-center gap-6 text-sm font-mono text-gray-400">
-                <div class="w-2 h-2 rounded-full bg-[#F4E04D] animate-pulse"></div>
-                <span class="text-[#F4E04D]">SYSTEM ONLINE</span>
-            </div>
-        </div>
-    </header>
+    <main class="relative pt-20 pb-20 px-6 min-h-screen flex flex-col items-center justify-center z-10">
 
-    <main class="relative pt-32 pb-20 px-6 min-h-screen flex flex-col items-center justify-center z-10">
-
-        <!-- Hero Text -->
-        <div class="text-center mb-16 relative z-10">
-            <div
-                class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[#333] bg-[#111] text-xs font-mono text-gray-400 mb-6">
-                <span class="w-1.5 h-1.5 rounded-full bg-[#F4E04D]"></span>
-                V2.0 NOW AVAILABLE
-            </div>
-            <h1 class="text-5xl md:text-7xl font-bold mb-6 tracking-tight">
-                <span class="glitch-text" data-text="EDIT REALITY">EDIT REALITY</span>
-            </h1>
-            <p class="text-gray-400 max-w-xl mx-auto text-lg">
-                The all-seeing AI video editor. Upload your footage and let the chaos engine do the rest.
-            </p>
+        <div class="fixed top-6 left-6 z-30">
+            <p class="text-[34px] md:text-[42px] leading-none text-gray-200"
+                style="font-family: Baskerville, 'Times New Roman', Times, serif;">Talos</p>
         </div>
 
         <!-- Platform + Format Selection -->
-        <div id="platform-format-selector" class="w-full max-w-3xl relative z-10 mb-10">
-            <!-- Platform Selection -->
-            <div class="mb-4">
-                <div class="font-mono text-xs font-bold text-gray-500 mb-3 tracking-widest">TARGET PLATFORM</div>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <!-- TikTok -->
-                    <button
-                        class="platform-btn active border-[#F4E04D] bg-[#F4E04D]/10 text-[#F4E04D] px-4 py-4 rounded-xl font-mono text-xs shadow-lg shadow-[#F4E04D]/5 hover:shadow-[#F4E04D]/15 hover:bg-[#F4E04D]/20 transition-all duration-300 flex flex-col items-center gap-2 relative overflow-hidden group"
-                        data-platform="tiktok" data-aspect="9:16" data-res="1080x1920">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" class="drop-shadow-sm">
-                            <path
-                                d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1v-3.5a6.37 6.37 0 0 0-.79-.05A6.34 6.34 0 0 0 3.15 15a6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V8.87a8.28 8.28 0 0 0 4.76 1.49V6.88a4.84 4.84 0 0 1-1-.19z" />
-                        </svg>
-                        <span class="font-bold tracking-wider">TikTok</span>
-                        <span class="text-[10px] text-gray-500 group-hover:text-[#F4E04D]/60">9:16 · 1080×1920</span>
-                    </button>
-                    <!-- Instagram Reel -->
-                    <button
-                        class="platform-btn border-[#333] bg-[#0a0a0a] text-gray-400 px-4 py-4 rounded-xl font-mono text-xs shadow-md hover:shadow-lg hover:bg-[#111] transition-all duration-300 flex flex-col items-center gap-2 relative overflow-hidden group"
-                        data-platform="instagram-reel" data-aspect="9:16" data-res="1080x1920">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="drop-shadow-sm">
-                            <rect x="2" y="2" width="20" height="20" rx="5" />
-                            <circle cx="12" cy="12" r="5" />
-                            <circle cx="17.5" cy="6.5" r="1.5" fill="currentColor" stroke="none" />
-                        </svg>
-                        <span class="font-bold tracking-wider">IG Reel</span>
-                        <span class="text-[10px] text-gray-500">9:16 · 1080×1920</span>
-                    </button>
-                    <!-- YouTube Short -->
-                    <button
-                        class="platform-btn border-[#333] bg-[#0a0a0a] text-gray-400 px-4 py-4 rounded-xl font-mono text-xs shadow-md hover:shadow-lg hover:bg-[#111] transition-all duration-300 flex flex-col items-center gap-2 relative overflow-hidden group"
-                        data-platform="youtube-short" data-aspect="9:16" data-res="1080x1920">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" class="drop-shadow-sm">
-                            <path
-                                d="M21.58 7.19c-.23-.86-.91-1.54-1.77-1.77C18.25 5 12 5 12 5s-6.25 0-7.81.42c-.86.23-1.54.91-1.77 1.77C2 8.75 2 12 2 12s0 3.25.42 4.81c.23.86.91 1.54 1.77 1.77C5.75 19 12 19 12 19s6.25 0 7.81-.42c.86-.23 1.54-.91 1.77-1.77C22 15.25 22 12 22 12s0-3.25-.42-4.81z"
-                                fill="#FF0000" />
-                            <polygon points="10 15.5 15.5 12 10 8.5" fill="white" />
-                        </svg>
-                        <span class="font-bold tracking-wider">YT Short</span>
-                        <span class="text-[10px] text-gray-500">9:16 · 1080×1920</span>
-                    </button>
-                    <!-- Instagram Post -->
-                    <button
-                        class="platform-btn border-[#333] bg-[#0a0a0a] text-gray-400 px-4 py-4 rounded-xl font-mono text-xs shadow-md hover:shadow-lg hover:bg-[#111] transition-all duration-300 flex flex-col items-center gap-2 relative overflow-hidden group"
-                        data-platform="instagram-post" data-aspect="1:1" data-res="1080x1080">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="drop-shadow-sm">
-                            <rect x="2" y="2" width="20" height="20" rx="5" />
-                            <circle cx="12" cy="12" r="5" />
-                            <circle cx="17.5" cy="6.5" r="1.5" fill="currentColor" stroke="none" />
-                        </svg>
-                        <span class="font-bold tracking-wider">IG Post</span>
-                        <span class="text-[10px] text-gray-500">1:1 · 1080×1080</span>
-                    </button>
+        <div id="platform-format-selector" class="w-full max-w-3xl relative z-10 mb-10"
+            style="--border:#333; --bg-subtle:#0a0a0a; --text-primary:#ededed; --text-secondary:#6b7280;">
+            <div class="w-full flex flex-col md:flex-row md:items-start md:justify-center gap-6 md:gap-8">
+                <!-- Platform Selection -->
+                <div class="flex-1 flex flex-col items-center md:items-start">
+                    <div class="font-mono text-xs font-bold mb-3 tracking-widest text-[color:var(--text-secondary)]">TARGET PLATFORM</div>
+                    <div class="inline-flex items-center border border-[color:var(--border)] rounded-[100px] bg-[color:var(--bg-subtle)] p-1 gap-1">
+                        <button
+                            class="platform-btn active bg-[color:var(--text-primary)] text-black px-5 py-2 rounded-[100px] font-mono text-xs font-bold transition-colors duration-200"
+                            data-platform="tiktok" data-aspect="9:16" data-res="1080x1920">TikTok</button>
+                        <button
+                            class="platform-btn text-[color:var(--text-secondary)] hover:text-white px-5 py-2 rounded-[100px] font-mono text-xs font-bold transition-colors duration-200"
+                            data-platform="instagram-reel" data-aspect="9:16" data-res="1080x1920">IG Reel</button>
+                        <button
+                            class="platform-btn text-[color:var(--text-secondary)] hover:text-white px-5 py-2 rounded-[100px] font-mono text-xs font-bold transition-colors duration-200"
+                            data-platform="youtube-short" data-aspect="9:16" data-res="1080x1920">YT Short</button>
+                        <button
+                            class="platform-btn text-[color:var(--text-secondary)] hover:text-white px-5 py-2 rounded-[100px] font-mono text-xs font-bold transition-colors duration-200"
+                            data-platform="instagram-post" data-aspect="1:1" data-res="1080x1080">IG Post</button>
+                    </div>
+                    <div id="platform-aspect-meta" class="mt-2 font-mono text-[11px] tracking-[0.08em] text-[color:var(--text-secondary)]">9:16 · 1080×1920</div>
                 </div>
-            </div>
 
-            <!-- Format Type Toggle -->
-            <div class="flex items-center gap-3">
-                <div class="font-mono text-xs font-bold text-gray-500 tracking-widest">FORMAT</div>
-                <div class="inline-flex rounded-lg border border-[#333] overflow-hidden">
-                    <button
-                        class="format-btn active bg-[#F4E04D] text-black px-5 py-2 font-mono text-xs font-bold transition-all duration-300"
-                        data-format="short">SHORT</button>
-                    <button
-                        class="format-btn bg-[#0a0a0a] text-gray-400 px-5 py-2 font-mono text-xs font-bold hover:bg-[#111] transition-all duration-300"
-                        data-format="full">FULL VIDEO</button>
+                <!-- Format Type Toggle (placed beside platform selector) -->
+                <div class="flex flex-col items-center md:items-start min-w-[170px]">
+                    <div class="font-mono text-xs font-bold mb-3 tracking-widest text-[color:var(--text-secondary)]">FORMAT</div>
+                    <div class="inline-flex items-center border border-[color:var(--border)] rounded-[100px] bg-[color:var(--bg-subtle)] p-1 gap-1">
+                        <button
+                            class="format-btn active bg-[color:var(--text-primary)] text-black px-4 py-2 rounded-[100px] font-mono text-xs font-bold transition-colors duration-200"
+                            data-format="short">Short</button>
+                        <button
+                            class="format-btn text-[color:var(--text-secondary)] hover:text-white px-4 py-2 rounded-[100px] font-mono text-xs font-bold transition-colors duration-200"
+                            data-format="full">Full Video</button>
+                    </div>
+                    <span id="format-hint" class="mt-2 text-[10px] font-mono tracking-[0.08em] text-[color:var(--text-secondary)]">Optimized for ≤60s clips</span>
                 </div>
-                <span id="format-hint" class="text-[10px] text-gray-600 font-mono">Optimized for ≤60s clips</span>
             </div>
         </div>
 
@@ -629,6 +567,61 @@
                         class="flex-1 border border-[#F4E04D] text-[#F4E04D] font-bold py-3 px-4 hover:bg-[#F4E04D]/10 transition-colors font-mono text-sm uppercase tracking-widest flex items-center justify-center">
                         <i data-lucide="refresh-cw" class="w-4 h-4 mr-2"></i> Distort Again
                     </button>
+                </div>
+                <!-- Manual Controls -->
+                <div class="mt-6 border border-[#333] rounded-xl p-4 bg-[#0a0a0a] space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div class="font-mono text-sm font-bold text-[#F4E04D]">Manual Overrides</div>
+                        <div class="text-[10px] text-gray-500">Re-run without re-uploading</div>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-xs text-gray-400 font-mono">Prompt</label>
+                        <input id="manual-prompt"
+                            class="w-full rounded-lg border border-[#222] bg-[#0d0d0d] px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-[#F4E04D]"
+                            placeholder="Edit prompt and re-run..." />
+                        <div class="flex gap-2">
+                            <button id="rerun-prompt-btn"
+                                class="flex-1 bg-[#F4E04D] text-black font-bold py-2 px-3 rounded hover:bg-white transition-colors text-xs font-mono">
+                                Re-run with prompt
+                            </button>
+                            <button id="revert-btn"
+                                class="px-3 py-2 border border-[#444] rounded text-xs text-gray-300 hover:bg-[#111]">
+                                Revert prompt
+                            </button>
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-xs text-gray-400 font-mono flex items-center justify-between">
+                            <span>Transcript (edit to fix captions)</span>
+                            <button id="load-transcript-btn"
+                                class="text-[10px] px-2 py-1 border border-[#333] rounded text-gray-300 hover:bg-[#111]">
+                                Load current
+                            </button>
+                        </label>
+                        <textarea id="manual-transcript"
+                            class="w-full rounded-lg border border-[#222] bg-[#0d0d0d] px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-[#F4E04D]"
+                            rows="4" placeholder="Edit transcript text here before re-running..."></textarea>
+                        <button id="rerun-transcript-btn"
+                            class="w-full bg-[#111] border border-[#F4E04D] text-[#F4E04D] font-bold py-2 px-3 rounded hover:bg-[#F4E04D]/10 transition-colors text-xs font-mono">
+                            Re-run with edited transcript
+                        </button>
+                        <div class="flex items-center gap-2 text-[11px] text-gray-500">
+                            <div id="rerun-spinner"
+                                class="hidden w-4 h-4 border-2 border-[#F4E04D] border-t-transparent rounded-full animate-spin">
+                            </div>
+                            <span id="rerun-status" class="hidden"></span>
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-xs text-gray-400 font-mono">Manual cuts (start-end per line, seconds)</label>
+                        <textarea id="manual-cuts"
+                            class="w-full rounded-lg border border-[#222] bg-[#0d0d0d] px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-[#F4E04D]"
+                            rows="3" placeholder="e.g. 0-5&#10;12.5-18"></textarea>
+                        <button id="rerun-cuts-btn"
+                            class="w-full bg-[#0b0b0b] border border-[#333] text-gray-200 font-bold py-2 px-3 rounded hover:bg-[#111] transition-colors text-xs font-mono">
+                            Apply cuts & re-run
+                        </button>
+                    </div>
                 </div>
             </div>
 
