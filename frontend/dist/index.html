@@ -14,6 +14,13 @@
         :root {
             --primary: #f4e04d;
             --bg: #050505;
+            --tether-gold: #d4af37;
+            --tether-gold-rgb: 212, 175, 55;
+            --tether-glow: #f0c040;
+            --tether-glow-rgb: 240, 192, 64;
+            --cutoff-line: rgba(212, 175, 55, 0.18);
+            --header-offset: 24px;
+            --tether-stop: clamp(7.5rem, 12vw, 10rem);
         }
 
         body {
@@ -75,6 +82,181 @@
         .scale-100 {
             transform: scale(1) translateY(0);
         }
+
+        /* Header rail + tether animation */
+
+        .header-rail {
+            position: fixed;
+            top: 1.5rem;
+            left: 1.5rem;
+            right: 1.5rem;
+            z-index: 30;
+            padding-bottom: 1.1rem;
+            pointer-events: none;
+        }
+
+        .header {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            padding-right: clamp(2.25rem, 5vw, 4.5rem);
+            z-index: 1;
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            right: clamp(-2.1rem, -3vw, -1.4rem);
+            bottom: -0.45rem;
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: rgba(255, 244, 198, 0.95);
+            box-shadow:
+                0 0 0 0 rgba(240, 192, 64, 0),
+                0 0 14px rgba(var(--tether-gold-rgb), 0.75);
+            opacity: 0;
+            animation: tetherAnchor 4.4s ease-out infinite;
+        }
+
+        .header-cutoff {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 18px;
+            overflow: visible;
+        }
+
+        .header-cutoff::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            height: 1px;
+            transform: translateY(-50%);
+            background: linear-gradient(
+                90deg,
+                rgba(244, 224, 77, 0.58) 0%,
+                rgba(var(--tether-gold-rgb), 0.2) 10rem,
+                rgba(var(--tether-gold-rgb), 0.12) 45%,
+                var(--cutoff-line) 100%
+            );
+            box-shadow: 0 0 18px rgba(var(--tether-gold-rgb), 0.08);
+        }
+
+        .header-cutoff::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 100%;
+            width: clamp(12rem, 30vw, 28rem);
+            height: 10px;
+            border-radius: 999px;
+            transform: translate3d(0, -50%, 0) scaleX(0.22);
+            transform-origin: right center;
+            background: linear-gradient(
+                270deg,
+                rgba(255, 255, 255, 0) 0%,
+                rgba(var(--tether-glow-rgb), 0.24) 24%,
+                rgba(var(--tether-glow-rgb), 0.85) 48%,
+                rgba(255, 247, 194, 0.98) 66%,
+                rgba(255, 255, 255, 0) 100%
+            );
+            box-shadow:
+                0 0 16px rgba(var(--tether-glow-rgb), 0.68),
+                0 0 28px rgba(var(--tether-gold-rgb), 0.34);
+            filter: blur(0.2px);
+            opacity: 0;
+            will-change: transform, opacity, height;
+            animation: tetherSweep 4.4s cubic-bezier(0.19, 1, 0.22, 1) infinite;
+        }
+
+        @keyframes tetherSweep {
+            0% {
+                transform: translate3d(0, -50%, 0) scaleX(0.22);
+                height: 10px;
+                opacity: 0;
+            }
+
+            12% {
+                opacity: 1;
+            }
+
+            55% {
+                transform: translate3d(-46vw, -50%, 0) scaleX(1);
+                height: 5px;
+                opacity: 1;
+            }
+
+            82% {
+                transform: translate3d(calc(-100vw + var(--tether-stop) + (var(--header-offset) * 2)), -50%, 0) scaleX(0.38);
+                height: 2px;
+                opacity: 0.72;
+            }
+
+            100% {
+                transform: translate3d(calc(-100vw + var(--tether-stop) + (var(--header-offset) * 2)), -50%, 0) scaleX(0.18);
+                height: 1px;
+                opacity: 0;
+            }
+        }
+
+        @keyframes tetherAnchor {
+            0%,
+            68% {
+                transform: scale(0.2);
+                opacity: 0;
+                box-shadow:
+                    0 0 0 0 rgba(240, 192, 64, 0),
+                    0 0 0 rgba(212, 175, 55, 0);
+            }
+
+            78% {
+                transform: scale(1);
+                opacity: 0.95;
+                box-shadow:
+                    0 0 0 4px rgba(var(--tether-glow-rgb), 0.14),
+                    0 0 16px rgba(var(--tether-gold-rgb), 0.9);
+            }
+
+            100% {
+                transform: scale(0.55);
+                opacity: 0;
+                box-shadow:
+                    0 0 0 12px rgba(240, 192, 64, 0),
+                    0 0 0 rgba(212, 175, 55, 0);
+            }
+        }
+
+        @media (max-width: 640px) {
+            .header-rail {
+                padding-bottom: 0.9rem;
+            }
+
+            .header-cutoff::after {
+                width: clamp(9rem, 44vw, 16rem);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .header-cutoff::after,
+            .header::after {
+                animation: none;
+            }
+
+            .header-cutoff::after {
+                transform: translate3d(calc(-100vw + var(--tether-stop) + (var(--header-offset) * 2)), -50%, 0) scaleX(0.24);
+                height: 2px;
+                opacity: 0.6;
+            }
+
+            .header::after {
+                transform: scale(1);
+                opacity: 0.75;
+            }
+        }
     </style>
     <script>
         tailwind.config = {
@@ -113,9 +295,12 @@
 
     <main class="relative pt-20 pb-20 px-6 min-h-screen flex flex-col items-center justify-center z-10">
 
-        <div class="fixed top-6 left-6 z-30">
-            <p class="text-[34px] md:text-[42px] leading-none text-gray-200"
-                style="font-family: Baskerville, 'Times New Roman', Times, serif;">Talos</p>
+        <div class="header-rail">
+            <div class="header">
+                <p class="text-[34px] md:text-[42px] leading-none text-gray-200"
+                    style="font-family: Baskerville, 'Times New Roman', Times, serif;">Talos</p>
+            </div>
+            <div class="header-cutoff" aria-hidden="true"></div>
         </div>
 
         <!-- Platform + Format Selection -->
