@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const distortionControls = document.getElementById('distortion-controls');
     const toggleControlsBtn = document.getElementById('toggle-controls');
     const controlsContent = document.getElementById('controls-content');
+    const controlsChevron = document.getElementById('controls-chevron');
     const cipherTriangleBtn = document.getElementById('cipher-triangle-btn');
     const resultContainer = document.getElementById('result-container');
     const resultVideo = document.getElementById('result-video');
@@ -60,11 +61,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initBillBackground();
     initWaveSurfer(); // Initialize visualization
     initProgressWebSocket(); // Real-time progress connection
-
-    // Show controls on load
-    setTimeout(() => {
-        if (distortionControls) distortionControls.classList.remove('opacity-0');
-    }, 500);
 
     // === Platform + Format Selection ===
     const platformBtnClasses = {
@@ -246,11 +242,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (toggleControlsBtn) {
         toggleControlsBtn.addEventListener('click', () => {
             controlsContent.classList.toggle('hidden');
-            const icon = toggleControlsBtn.querySelector('i');
             if (controlsContent.classList.contains('hidden')) {
-                icon.style.transform = 'rotate(0deg)';
+                if (controlsChevron) controlsChevron.style.transform = 'rotate(0deg)';
             } else {
-                icon.style.transform = 'rotate(180deg)';
+                if (controlsChevron) controlsChevron.style.transform = 'rotate(180deg)';
             }
         });
     }
