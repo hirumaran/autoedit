@@ -2,6 +2,7 @@
 AI Video Analyzer - Local Vision Model with Network Bypass
 Uses Microsoft Florence-2 with multiple fallback methods for school networks.
 """
+import logging
 import os
 import json
 import subprocess
@@ -27,6 +28,8 @@ os.environ["REQUESTS_CA_BUNDLE"] = ""
 LOCAL_MODEL = None
 LOCAL_PROCESSOR = None
 MODEL_LOADED = False
+
+logger = logging.getLogger(__name__)
 
 
 def _try_load_model():
@@ -152,42 +155,63 @@ class AIVideoAnalyzer:
         return frames
 
     def _analyze_frame_with_model(self, frame_path: str) -> Dict:
-        """Analyze frame with Florence-2 if available."""
-        global LOCAL_MODEL, LOCAL_PROCESSOR
-        
-        if LOCAL_MODEL is None:
-            if not _try_load_model():
-                return None
-        
-        if LOCAL_MODEL is None:
-            return None
-        
+        """Analyze frame via Groq Llama 4 Scout vision. Returns None on failure."""
         try:
-            import torch
-            
-            image = Image.open(frame_path).convert("RGB")
-            prompt = "<MORE_DETAILED_CAPTION>"
-            
-            inputs = LOCAL_PROCESSOR(text=prompt, images=image, return_tensors="pt")
-            device = "mps" if torch.backends.mps.is_available() else "cpu"
-            inputs = {k: v.to(device) if hasattr(v, 'to') else v for k, v in inputs.items()}
-            
-            with torch.no_grad():
-                generated_ids = LOCAL_MODEL.generate(
-                    input_ids=inputs["input_ids"],
-                    pixel_values=inputs["pixel_values"],
-                    max_new_tokens=128,
-                    num_beams=2
-                )
-            
-            generated_text = LOCAL_PROCESSOR.batch_decode(generated_ids, skip_special_tokens=True)[0]
-            score = self._score_content(generated_text)
-            
-            return {"description": generated_text, "score": score}
-            
+            import base64
+            import json
+            from groq import Groq
+
+            api_key = os.getenv("GROQ_API_KEY")
+            if not api_key:
+                logger.warning("GROQ_API_KEY not set — skipping Groq vision")
+                return None
+
+            with open(frame_path, "rb") as f:
+                image_data = base64.b64encode(f.read()).decode("utf-8")
+
+            client = Groq(api_key=api_key)
+
+            prompt = """You are a video editor evaluating whether a clip should be cut or kept.
+Analyze this video frame and respond with ONLY valid JSON, no markdown, no extra text:
+{
+  "score": <integer 1-10>,
+  "description": "<one sentence: what you see and why it scores this>"
+}
+Scoring:
+1-3 = Cut it. Static shot, empty frame, bad lighting, no subject, out of focus.
+4-6 = Borderline. Subject present but low energy, awkward framing, nothing happening.
+7-9 = Keep it. Clear subject, good framing, active or engaging moment.
+10 = Highlight reel. Peak emotion, perfect composition, exceptional moment."""
+
+            completion = client.chat.completions.create(
+                model="meta-llama/llama-4-scout-17b-16e-instruct",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{image_data}"
+                                },
+                            },
+                        ],
+                    }
+                ],
+                response_format={"type": "json_object"},
+                max_tokens=120,
+                temperature=0.2,
+            )
+
+            result = json.loads(completion.choices[0].message.content)
+            score = int(result.get("score", 5))
+            score = max(1, min(10, score))  # clamp to 1-10
+            return {"description": result.get("description", ""), "score": score}
+
         except Exception as e:
-            print(f"⚠️ Frame analysis error: {e}")
-            return None
+            logger.warning(f"Groq vision failed for {frame_path}: {e}")
+            return None  # triggers heuristic fallback in caller
 
     def _analyze_frame_heuristic(self, frame_path: str) -> Dict:
         """Analyze frame using image heuristics (no AI model needed)."""

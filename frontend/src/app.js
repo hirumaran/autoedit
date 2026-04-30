@@ -1,4 +1,4 @@
-import { createLoader, destroyLoader, destroyAllLoaders } from './loader.js';
+import { createLoader, createAtomLoader, destroyLoader } from './loader.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- Elements ---
@@ -453,7 +453,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (platformSelector) platformSelector.classList.add('hidden');
                 processingContainer.classList.remove('hidden');
                 if (processingLoaderEl) {
-                    processingLoader = createLoader(processingLoaderEl, 'full');
+                    processingLoader = createAtomLoader(processingLoaderEl);
                 }
                 if (errorText) {
                     errorText.classList.add('hidden');
@@ -810,7 +810,7 @@ document.addEventListener('DOMContentLoaded', () => {
             reviewContainer.classList.add('hidden');
             processingContainer.classList.remove('hidden');
             if (processingLoaderEl) {
-                processingLoader = createLoader(processingLoaderEl, 'full');
+                processingLoader = createAtomLoader(processingLoaderEl);
             }
             updateProgress(50, 'RENDERING REALITY...');
 

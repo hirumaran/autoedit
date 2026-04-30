@@ -10,6 +10,10 @@ Handles video editing operations:
 from __future__ import annotations
 
 import logging
+import os
+import subprocess
+import tempfile
+import time
 import uuid
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -625,39 +629,100 @@ async def process_video(req: ProcessRequest):
             except Exception:
                 pass
 
-        # ── Step 4: Build AI analysis summary ──────────────────────────────
-        overall_score = virality.get("virality_score", 50)
-        if isinstance(overall_score, (int, float)):
-            overall_score = round(overall_score / 10)  # Convert 0-100 to 0-10
-        else:
-            overall_score = 5
+        # ── Step 4: AI-powered visual analysis per segment ─────────────────
+        # Initialize Florence-2 analyzer once for all segments
+        from backend.ai_analyzer import AIVideoAnalyzer
+
+        ai_analyzer = AIVideoAnalyzer()
 
         suggestions = virality.get("suggestions", [])
 
-        # Build suggested cuts from segments with low retention
+        # Build suggested cuts: extract frames at each segment's timestamps,
+        # run through Florence-2 (or heuristic fallback), and derive scores
+        # from actual visual content rather than text-length heuristics.
         suggested_cuts = []
+        segment_scores = []
+
         for seg in segments:
-            score = 5  # default
-            # Simple heuristic: short pauses or filler words suggest boring parts
-            text = seg.get("text", "").lower().strip()
-            if len(text) < 10 or text in ("um", "uh", "hmm", "...", ""):
-                score = 3
-            elif len(text) > 100:
-                score = 7
+            seg_start = float(seg.get("start", 0))
+            seg_end = float(seg.get("end", 0))
+            seg_duration = seg_end - seg_start
+
+            # Sample 1 frame at segment midpoint (free-tier rate limit: ~10 req/min)
+            seg_mid = (seg_start + seg_end) / 2
+            timestamp = seg_mid if seg_duration > 0 else seg_start
+
+            frame_path = None
+            try:
+                fd, frame_path = tempfile.mkstemp(suffix=".jpg")
+                os.close(fd)
+                # Extract a single frame at segment midpoint via ffmpeg seek
+                subprocess.run(
+                    [
+                        "ffmpeg", "-y", "-ss", str(timestamp),
+                        "-i", video_path, "-vframes", "1", "-q:v", "3",
+                        frame_path,
+                    ],
+                    check=True,
+                    capture_output=True,
+                    timeout=15,
+                )
+
+                # Run through Groq Llama 4 Scout vision; falls back to heuristic
+                # if GROQ_API_KEY is missing or the API call fails.
+                analysis = ai_analyzer._analyze_frame_with_model(frame_path)
+                if analysis is None:
+                    analysis = ai_analyzer._analyze_frame_heuristic(frame_path)
+
+                # Respect Groq free-tier rate limit (~10 req/min)
+                time.sleep(1.0)
+
+                score = analysis.get("score", 5)
+                description = analysis.get("description", "")
+            except Exception as exc:
+                logger.warning(
+                    "Frame analysis failed for segment [%.1f–%.1f]: %s",
+                    seg_start, seg_end, exc,
+                )
+                score = 5  # neutral fallback
+                description = ""
+            finally:
+                if frame_path and os.path.exists(frame_path):
+                    try:
+                        os.unlink(frame_path)
+                    except OSError:
+                        pass
+
+            segment_scores.append(score)
+
             suggested_cuts.append(
                 {
-                    "start": round(seg.get("start", 0), 1),
-                    "end": round(seg.get("end", 0), 1),
+                    "start": round(seg_start, 1),
+                    "end": round(seg_end, 1),
                     "text": seg.get("text", ""),
-                    "retention_score": score,
+                    "score": score,
                     "recommendation": "cut" if score <= 4 else "keep",
-                    "reason": "Short/pause segment"
-                    if score <= 4
-                    else "Content segment",
+                    "reason": description[:200] if description else "Content segment",
                 }
             )
 
-        summary = f"Video analyzed: {len(segments)} segments, {duration:.1f}s duration."
+        # Derive overall score: 70% AI segment visual quality + 30% virality signal.
+        # This ensures the overall score correlates with the per-segment scores
+        # the user sees in the list, while still rewarding viral potential.
+        if segment_scores:
+            segment_avg = sum(segment_scores) / len(segment_scores)
+            virality_score = virality.get("virality_score", 50)
+            overall_score = round(
+                0.7 * segment_avg + 0.3 * (virality_score / 10)
+            )
+        else:
+            overall_score = round(virality.get("virality_score", 50) / 10)
+
+        low_score_count = sum(1 for s in segment_scores if s <= 4)
+        summary = (
+            f"Video analyzed: {len(segments)} segments, "
+            f"{low_score_count} flagged for low visual engagement."
+        )
         if suggestions:
             summary += f" {len(suggestions)} improvement suggestions found."
 
