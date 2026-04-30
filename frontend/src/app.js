@@ -1,8 +1,12 @@
+import { createLoader, destroyLoader, destroyAllLoaders } from './loader.js';
+
 document.addEventListener('DOMContentLoaded', () => {
     // --- Elements ---
     const fileInput = document.getElementById('file-input');
     const uploadContainer = document.getElementById('upload-container');
     const processingContainer = document.getElementById('processing-container');
+    const processingLoaderEl = document.getElementById('processing-loader');
+    const audioInitialLoaderEl = document.getElementById('audio-initial-loader');
     const progressBar = document.getElementById('progress-bar');
     const progressText = document.getElementById('progress-text');
     const billPopup = document.getElementById('bill-popup');
@@ -61,6 +65,19 @@ document.addEventListener('DOMContentLoaded', () => {
     initBillBackground();
     initWaveSurfer(); // Initialize visualization
     initProgressWebSocket(); // Real-time progress connection
+
+    // Loader instances
+    let processingLoader = null;
+    let audioInitialLoader = null;
+
+    // Show initial audio loader
+    if (audioInitialLoaderEl) {
+        audioInitialLoader = createLoader(audioInitialLoaderEl, 'compact');
+        const label = document.createElement('p');
+        label.className = 'text-gray-400 font-bold text-sm uppercase tracking-widest';
+        label.textContent = 'Waking up the library...';
+        audioInitialLoaderEl.appendChild(label);
+    }
 
     // === Platform + Format Selection ===
     const platformBtnClasses = {
@@ -435,6 +452,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const platformSelector = document.getElementById('platform-format-selector');
                 if (platformSelector) platformSelector.classList.add('hidden');
                 processingContainer.classList.remove('hidden');
+                if (processingLoaderEl) {
+                    processingLoader = createLoader(processingLoaderEl, 'full');
+                }
                 if (errorText) {
                     errorText.classList.add('hidden');
                     errorText.innerText = '';
@@ -556,6 +576,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.status === 'analyzed') {
                     clearInterval(interval);
                     updateProgress(50, 'ANALYSIS COMPLETE');
+                    destroyLoader(processingLoader);
                     processingContainer.classList.add('hidden');
                     reviewContainer.classList.remove('hidden');
                     populateReviewUI(videoId);
@@ -697,6 +718,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function showError(msg) {
+        destroyLoader(processingLoader);
         if (errorText) {
             errorText.classList.remove('hidden');
             errorText.innerText = msg;
@@ -721,6 +743,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         setTimeout(() => {
+            destroyLoader(processingLoader);
             processingContainer.classList.add('hidden');
             resultContainer.classList.remove('hidden');
 
@@ -786,6 +809,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // UI Update
             reviewContainer.classList.add('hidden');
             processingContainer.classList.remove('hidden');
+            if (processingLoaderEl) {
+                processingLoader = createLoader(processingLoaderEl, 'full');
+            }
             updateProgress(50, 'RENDERING REALITY...');
 
             // Start Polling again
@@ -798,7 +824,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify({
                         video_id: currentVideoId,
                         custom_segments: finalSegments,
-                        manual_transcript: transcript,
                         style_preset: selectedStyle,
                         add_subtitles: burnSubs,
                         add_music: addMusicToggle ? addMusicToggle.checked : false,
@@ -1091,17 +1116,21 @@ document.addEventListener('DOMContentLoaded', () => {
     async function searchMusic(query) {
         if (!query) return;
 
-        // Show loading state
         audioListContainer.innerHTML = `
             <tr>
                 <td colspan="6" class="py-20 text-center">
-                    <div class="flex flex-col items-center gap-4">
-                        <div class="w-10 h-10 border-4 border-gray-100 border-t-black rounded-full animate-spin"></div>
-                        <p class="text-gray-400 font-bold text-sm uppercase tracking-widest">Searching the sound waves...</p>
-                    </div>
+                    <div id="music-search-loader" class="flex flex-col items-center gap-4"></div>
                 </td>
             </tr>
         `;
+        const searchLoaderEl = document.getElementById('music-search-loader');
+        if (searchLoaderEl) {
+            createLoader(searchLoaderEl, 'compact');
+            const label = document.createElement('p');
+            label.className = 'text-gray-400 font-bold text-sm uppercase tracking-widest';
+            label.textContent = 'Searching the sound waves...';
+            searchLoaderEl.appendChild(label);
+        }
 
         try {
             const res = await fetch('/api/music/agent/recommend', {

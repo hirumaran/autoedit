@@ -4,12 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CIPHER.AI - Edit Reality</title>
+    <title>Talos</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
+    <script src="https://unpkg.com/@dotlottie/player-component@2.7.12/dist/dotlottie-player.mjs" type="module"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;700;900&family=Space+Grotesk:wght@400;500;600&display=swap');
 
         :root {
             --primary: #f4e04d;
@@ -75,7 +76,6 @@
         .scale-100 {
             transform: scale(1) translateY(0);
         }
-
     </style>
     <script>
         tailwind.config = {
@@ -97,7 +97,7 @@
             window.lucide?.createIcons();
         });
     </script>
-  <script type="module" crossorigin src="/assets/index-D7Uqt58E.js"></script>
+  <script type="module" crossorigin src="/assets/index-WL0uXGHJ.js"></script>
 </head>
 
 <body class="min-h-screen bg-[#050505] text-[#ededed] overflow-x-hidden relative">
@@ -130,8 +130,10 @@
             <div class="w-full flex flex-col md:flex-row md:items-start md:justify-center gap-6 md:gap-8">
                 <!-- Platform Selection -->
                 <div class="flex-1 flex flex-col items-center md:items-start">
-                    <div class="font-mono text-xs font-bold mb-3 tracking-widest text-[color:var(--text-secondary)]">TARGET PLATFORM</div>
-                    <div class="inline-flex items-center border border-[color:var(--border)] rounded-[100px] bg-[color:var(--bg-subtle)] p-1 gap-1">
+                    <div class="font-mono text-xs font-bold mb-3 tracking-widest text-[color:var(--text-secondary)]">
+                        TARGET PLATFORM</div>
+                    <div
+                        class="inline-flex items-center border border-[color:var(--border)] rounded-[100px] bg-[color:var(--bg-subtle)] p-1 gap-1">
                         <button
                             class="platform-btn active bg-[color:var(--text-primary)] text-black px-5 py-2 rounded-[100px] font-mono text-xs font-bold transition-colors duration-200"
                             data-platform="tiktok" data-aspect="9:16" data-res="1080x1920">TikTok</button>
@@ -145,13 +147,17 @@
                             class="platform-btn text-[color:var(--text-secondary)] hover:text-white px-5 py-2 rounded-[100px] font-mono text-xs font-bold transition-colors duration-200"
                             data-platform="instagram-post" data-aspect="1:1" data-res="1080x1080">IG Post</button>
                     </div>
-                    <div id="platform-aspect-meta" class="mt-2 font-mono text-[11px] tracking-[0.08em] text-[color:var(--text-secondary)]">9:16 · 1080×1920</div>
+                    <div id="platform-aspect-meta"
+                        class="mt-2 font-mono text-[11px] tracking-[0.08em] text-[color:var(--text-secondary)]">9:16 ·
+                        1080×1920</div>
                 </div>
 
                 <!-- Format Type Toggle (placed beside platform selector) -->
                 <div class="flex flex-col items-center md:items-start min-w-[170px]">
-                    <div class="font-mono text-xs font-bold mb-3 tracking-widest text-[color:var(--text-secondary)]">FORMAT</div>
-                    <div class="inline-flex items-center border border-[color:var(--border)] rounded-[100px] bg-[color:var(--bg-subtle)] p-1 gap-1">
+                    <div class="font-mono text-xs font-bold mb-3 tracking-widest text-[color:var(--text-secondary)]">
+                        FORMAT</div>
+                    <div
+                        class="inline-flex items-center border border-[color:var(--border)] rounded-[100px] bg-[color:var(--bg-subtle)] p-1 gap-1">
                         <button
                             class="format-btn active bg-[color:var(--text-primary)] text-black px-4 py-2 rounded-[100px] font-mono text-xs font-bold transition-colors duration-200"
                             data-format="short">Short</button>
@@ -159,7 +165,9 @@
                             class="format-btn text-[color:var(--text-secondary)] hover:text-white px-4 py-2 rounded-[100px] font-mono text-xs font-bold transition-colors duration-200"
                             data-format="full">Full Video</button>
                     </div>
-                    <span id="format-hint" class="mt-2 text-[10px] font-mono tracking-[0.08em] text-[color:var(--text-secondary)]">Optimized for ≤60s clips</span>
+                    <span id="format-hint"
+                        class="mt-2 text-[10px] font-mono tracking-[0.08em] text-[color:var(--text-secondary)]">Optimized
+                        for ≤60s clips</span>
                 </div>
             </div>
         </div>
@@ -221,7 +229,8 @@
                             <i data-lucide="settings" class="text-[#F4E04D] w-5 h-5"></i>
                             <span class="font-mono text-sm font-bold">REALITY DISTORTION PARAMETERS</span>
                         </div>
-                        <i id="controls-chevron" data-lucide="chevron-down" class="text-gray-400 w-5 h-5 transition-transform duration-300"></i>
+                        <i id="controls-chevron" data-lucide="chevron-down"
+                            class="text-gray-400 w-5 h-5 transition-transform duration-300"></i>
                     </button>
 
                     <div id="controls-content" class="px-6 pb-6 space-y-4">
@@ -294,25 +303,7 @@
             <!-- Processing State (Hidden initially) -->
             <div id="processing-container"
                 class="hidden w-full aspect-video rounded-xl border border-[#333] bg-[#0a0a0a] relative overflow-hidden flex flex-col items-center justify-center">
-                <div class="w-full max-w-md px-8 text-center">
-                    <div class="mb-8 relative">
-                        <div
-                            class="w-16 h-16 mx-auto border-4 border-[#111] border-t-[#F4E04D] rounded-full animate-spin">
-                        </div>
-                        <div class="absolute inset-0 flex items-center justify-center">
-                            <i data-lucide="eye" class="text-[#F4E04D] animate-pulse w-5 h-5"></i>
-                        </div>
-                    </div>
-                    <h3 class="text-xl font-bold mb-2 animate-pulse text-[#F4E04D]">
-                        <span class="glitch-text" data-text="DECIPHERING...">DECIPHERING...</span>
-                    </h3>
-                    <div class="w-full h-1 bg-[#111] rounded-full overflow-hidden mt-4">
-                        <div id="progress-bar" class="h-full bg-[#F4E04D] transition-all duration-100 ease-out"
-                            style="width: 0%"></div>
-                    </div>
-                    <p id="progress-text" class="mt-2 font-mono text-xs text-gray-500">0% COMPLETE</p>
-                    <p id="error-text" class="mt-2 font-mono text-xs text-red-400 hidden"></p>
-                </div>
+                <div id="processing-loader" class="w-full max-w-md px-8 text-center"></div>
             </div>
 
             <!-- Review State (Hidden initially) -->
@@ -574,61 +565,6 @@
                         <i data-lucide="refresh-cw" class="w-4 h-4 mr-2"></i> Distort Again
                     </button>
                 </div>
-                <!-- Manual Controls -->
-                <div class="mt-6 border border-[#333] rounded-xl p-4 bg-[#0a0a0a] space-y-3">
-                    <div class="flex items-center justify-between">
-                        <div class="font-mono text-sm font-bold text-[#F4E04D]">Manual Overrides</div>
-                        <div class="text-[10px] text-gray-500">Re-run without re-uploading</div>
-                    </div>
-                    <div class="space-y-2">
-                        <label class="text-xs text-gray-400 font-mono">Prompt</label>
-                        <input id="manual-prompt"
-                            class="w-full rounded-lg border border-[#222] bg-[#0d0d0d] px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-[#F4E04D]"
-                            placeholder="Edit prompt and re-run..." />
-                        <div class="flex gap-2">
-                            <button id="rerun-prompt-btn"
-                                class="flex-1 bg-[#F4E04D] text-black font-bold py-2 px-3 rounded hover:bg-white transition-colors text-xs font-mono">
-                                Re-run with prompt
-                            </button>
-                            <button id="revert-btn"
-                                class="px-3 py-2 border border-[#444] rounded text-xs text-gray-300 hover:bg-[#111]">
-                                Revert prompt
-                            </button>
-                        </div>
-                    </div>
-                    <div class="space-y-2">
-                        <label class="text-xs text-gray-400 font-mono flex items-center justify-between">
-                            <span>Transcript (edit to fix captions)</span>
-                            <button id="load-transcript-btn"
-                                class="text-[10px] px-2 py-1 border border-[#333] rounded text-gray-300 hover:bg-[#111]">
-                                Load current
-                            </button>
-                        </label>
-                        <textarea id="manual-transcript"
-                            class="w-full rounded-lg border border-[#222] bg-[#0d0d0d] px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-[#F4E04D]"
-                            rows="4" placeholder="Edit transcript text here before re-running..."></textarea>
-                        <button id="rerun-transcript-btn"
-                            class="w-full bg-[#111] border border-[#F4E04D] text-[#F4E04D] font-bold py-2 px-3 rounded hover:bg-[#F4E04D]/10 transition-colors text-xs font-mono">
-                            Re-run with edited transcript
-                        </button>
-                        <div class="flex items-center gap-2 text-[11px] text-gray-500">
-                            <div id="rerun-spinner"
-                                class="hidden w-4 h-4 border-2 border-[#F4E04D] border-t-transparent rounded-full animate-spin">
-                            </div>
-                            <span id="rerun-status" class="hidden"></span>
-                        </div>
-                    </div>
-                    <div class="space-y-2">
-                        <label class="text-xs text-gray-400 font-mono">Manual cuts (start-end per line, seconds)</label>
-                        <textarea id="manual-cuts"
-                            class="w-full rounded-lg border border-[#222] bg-[#0d0d0d] px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-[#F4E04D]"
-                            rows="3" placeholder="e.g. 0-5&#10;12.5-18"></textarea>
-                        <button id="rerun-cuts-btn"
-                            class="w-full bg-[#0b0b0b] border border-[#333] text-gray-200 font-bold py-2 px-3 rounded hover:bg-[#111] transition-colors text-xs font-mono">
-                            Apply cuts & re-run
-                        </button>
-                    </div>
-                </div>
             </div>
 
         </div>
@@ -792,13 +728,7 @@
                                 <!-- Tracks will be inserted here -->
                                 <tr>
                                     <td colspan="6" class="py-20 text-center">
-                                        <div class="flex flex-col items-center gap-4">
-                                            <div
-                                                class="w-10 h-10 border-4 border-gray-100 border-t-black rounded-full animate-spin">
-                                            </div>
-                                            <p class="text-gray-400 font-bold text-sm uppercase tracking-widest">Waking
-                                                up the library...</p>
-                                        </div>
+                                        <div id="audio-initial-loader" class="flex flex-col items-center gap-4"></div>
                                     </td>
                                 </tr>
                             </tbody>
