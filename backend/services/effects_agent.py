@@ -3,11 +3,12 @@ Effects Agent - AI-driven effect suggestions based on video content and trends.
 Uses semantic matching to recommend effects that boost virality.
 """
 
+from sentence_transformers import SentenceTransformer
 import logging
 from typing import Dict, List, Optional
 from pathlib import Path
 from dataclasses import asdict
-
+from sentence_transformers import util
 from .effects_library import effects_library, Effect
 
 logger = logging.getLogger(__name__)

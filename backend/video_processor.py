@@ -575,16 +575,8 @@ class VideoProcessor:
         # --- MoviePy path ---
         if _MOVIEPY_ENGINE_AVAILABLE:
             try:
-                try:
-                    # MoviePy v1.x
-                    from moviepy.editor import (
-                        VideoFileClip,
-                        ImageClip,
-                        CompositeVideoClip,
-                    )  # type: ignore
-                except ImportError:
-                    # MoviePy v2.x
-                    from moviepy import VideoFileClip, ImageClip, CompositeVideoClip  # type: ignore
+                # MoviePy v2.x (moviepy.editor removed in v2.x)
+                from moviepy import VideoFileClip, ImageClip, CompositeVideoClip  # type: ignore
 
                 base = VideoFileClip(self.video_path)
                 logo = ImageClip(overlay_image).set_duration(base.duration)

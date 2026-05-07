@@ -37,9 +37,8 @@ except ImportError:
 
 try:
     import mediapipe as mp
-    import mediapipe.python.solutions.face_detection as mp_face
 
-    _mp_face = mp.solutions.face_detection if hasattr(mp, "solutions") else mp_face
+    _mp_face = mp.solutions.face_detection  # type: ignore[attr-defined]
     MEDIAPIPE_AVAILABLE = True
 except (ImportError, AttributeError) as e:
     MEDIAPIPE_AVAILABLE = False

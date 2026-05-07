@@ -35,12 +35,12 @@ scikit-learn>=1.4.0
 
 # Video / Image Processing
 ffmpeg-python==0.2.0
-# Use headless to avoid cv2/av dylib conflict on macOS
+# Use ONLY headless to avoid cv2/av dylib conflict on macOS
+# Do NOT install opencv-python or opencv-contrib-python alongside this
 opencv-python-headless==4.10.0.84
 
-# MoviePy — use 1.0.3 which has stable macOS support
-# (2.x has incomplete effect exports; FFmpeg fallback handles all effects)
-moviepy==1.0.3
+# MoviePy — 2.x is installed and code is adapted for it
+moviepy>=2.0.0,<3.0.0
 imageio==2.31.6
 imageio-ffmpeg==0.4.9
 proglog>=0.1.9
